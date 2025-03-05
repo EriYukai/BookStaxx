@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "BookStaxx",
+  "version": "1.0",
+  "description": "웹 페이지에 북마크 버튼을 추가하고 북마크 바를 커스터마이징할 수 있는 확장 프로그램",
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "permissions": [
+    "bookmarks",
+    "storage",
+    "activeTab",
+    "tabs",
+    "notifications"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    },
+    "default_title": "북마크 추가"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+} 
