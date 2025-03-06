@@ -1,6 +1,47 @@
 ﻿// 서비스 워커 초기화
 console.log('BookStaxx 백그라운드 서비스 워커 시작됨');
 
+// 확장 프로그램 설치 및 업데이트 이벤트 리스너
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log('확장 프로그램 설치/업데이트:', details.reason);
+  
+  // 기본 설정 초기화
+  initializeDefaultSettings();
+  
+  // 설치 시 웰컴 페이지 표시
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: 'options.html' });
+  }
+});
+
+// 기본 설정 초기화 함수
+function initializeDefaultSettings() {
+  // 기본 설정 객체
+  const defaultSettings = {
+    bookmarkButton: {
+      show: true,
+      position: 'topRight',
+      size: 'medium'
+    },
+    bookmarkBar: {
+      position: 'top',
+      backgroundColor: '#f1f3f4',
+      textColor: '#333333',
+      opacity: 100,
+      showText: true,
+      iconSize: 'medium',
+      hideChrome: false
+    }
+  };
+  
+  // 기존 설정 확인 후 없으면 기본값 저장
+  chrome.storage.sync.get(defaultSettings, (settings) => {
+    chrome.storage.sync.set(settings, () => {
+      console.log('기본 설정 초기화 완료');
+    });
+  });
+}
+
 // 서비스 워커 활성화 상태 유지
 self.addEventListener('install', (event) => {
   console.log('서비스 워커 설치됨');
@@ -14,77 +55,61 @@ self.addEventListener('activate', (event) => {
 
 // 북마크 추가 메시지를 처리하는 리스너
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('메시지 수신:', message.action);
+  console.log('메시지 수신:', message, '발신자:', sender);
   
-  // ping 메시지 처리 (연결 확인용)
-  if (message.action === 'ping') {
-    console.log('Ping 요청 수신');
-    sendResponse({ pong: true });
-    return false; // 동기 응답
+  // 북마크 추가 요청 처리
+  if (message.action === 'addBookmark') {
+    addBookmark(message.title, message.url)
+      .then(result => {
+        sendResponse({ success: true, bookmark: result });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // 비동기 응답을 위해 true 반환
   }
   
-  if (message.action === 'addBookmark') {
-    console.log('북마크 추가 요청 수신:', message);
-    
-    // 북마크 추가 전에 이미 존재하는지 확인
-    chrome.bookmarks.search({url: message.url}, (results) => {
-      if (results && results.length > 0) {
-        console.log('이미 존재하는 북마크입니다:', results[0]);
-        sendResponse({ 
-          success: true, 
-          bookmark: results[0],
-          message: '이미 존재하는 북마크입니다' 
+  // 북마크 목록 요청 처리
+  if (message.action === 'getBookmarks') {
+    getBookmarks()
+      .then(bookmarks => {
+        sendResponse({ success: true, bookmarks: bookmarks });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // 비동기 응답을 위해 true 반환
+  }
+  
+  // 설정 변경 알림 처리
+  if (message.action === 'settingsUpdated') {
+    // 모든 탭에 설정 변경 알림
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, { 
+          action: 'settingsUpdated',
+          settings: message.settings
+        }).catch(() => {
+          // 오류 무시 (일부 탭에서는 콘텐츠 스크립트가 로드되지 않았을 수 있음)
         });
-        return;
-      }
-      
-      // 북마크 추가
-      chrome.bookmarks.create({
-        title: message.title || (sender.tab ? sender.tab.title : ''),
-        url: message.url || (sender.tab ? sender.tab.url : '')
-      }, (bookmark) => {
-        if (chrome.runtime.lastError) {
-          console.error('북마크 추가 실패:', chrome.runtime.lastError.message);
-          sendResponse({ success: false, error: chrome.runtime.lastError.message });
-        } else {
-          // 북마크 추가 성공 메시지 전송
-          console.log('북마크 추가 성공:', bookmark);
-          sendResponse({ success: true, bookmark: bookmark });
-          
-          // 모든 탭에 북마크 변경 알림
-          notifyBookmarkChange();
-        }
       });
     });
     
-    // 비동기 응답을 위해 true 반환
-    return true;
-  }
-  
-  // 북마크 가져오기 메시지 처리
-  else if (message.action === 'getBookmarks') {
-    // 북마크 바 폴더 가져오기
-    chrome.bookmarks.getTree((bookmarkTreeNodes) => {
-      // 북마크 바는 일반적으로 첫 번째 노드의 첫 번째 자식
-      const bookmarkBar = bookmarkTreeNodes[0].children[0];
-      
-      if (bookmarkBar && bookmarkBar.children) {
-        sendResponse({ success: true, bookmarks: bookmarkBar.children });
-      } else {
-        sendResponse({ success: false, error: '북마크를 찾을 수 없습니다.' });
-      }
-    });
-    
-    // 비동기 응답을 위해 true 반환
-    return true;
-  }
-  
-  // 설정 페이지 열기 메시지 처리
-  else if (message.action === 'openOptions') {
-    chrome.runtime.openOptionsPage();
     sendResponse({ success: true });
-    return false;
+    return true;
   }
+  
+  // Chrome 설정 페이지 열기 처리
+  if (message.action === 'openChromeSettings') {
+    // 북마크 설정 페이지 URL (보안상의 이유로 직접 chrome:// URL을 열 수 없음)
+    chrome.tabs.create({ url: 'hide-chrome-bar.html' });
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  // 기본 응답
+  sendResponse({ success: false, error: 'Unknown action' });
+  return true;
 });
 
 // content script가 로드되었는지 확인하는 함수
@@ -109,52 +134,60 @@ function isContentScriptLoaded(tabId) {
 
 // content script를 주입하는 함수
 function injectContentScript(tabId) {
-  return new Promise((resolve) => {
-    // 먼저 탭이 유효한지 확인
-    chrome.tabs.get(tabId, (tab) => {
-      if (chrome.runtime.lastError) {
-        console.log('탭을 찾을 수 없습니다:', chrome.runtime.lastError);
-        resolve(false);
+  return new Promise((resolve, reject) => {
+    // 먼저 콘텐츠 스크립트가 이미 로드되었는지 확인
+    isContentScriptLoaded(tabId).then(isLoaded => {
+      if (isLoaded) {
+        console.log(`콘텐츠 스크립트가 이미 로드되어 있습니다 (탭 ${tabId})`);
+        resolve(true);
         return;
       }
       
-      // chrome:// 페이지나 확장 프로그램 페이지 등 주입이 불가능한 페이지 확인
-      const url = tab.url || '';
-      if (url.startsWith('chrome://') || 
-          url.startsWith('chrome-extension://') || 
-          url.startsWith('about:') || 
-          url.startsWith('edge://') || 
-          url.startsWith('brave://') ||
-          url === '') {
-        console.log('주입이 불가능한 페이지입니다', url);
-        resolve(false);
-        return;
-      }
-      
-      // 스크립트 주입 시도
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }, (results) => {
+      // 먼저 탭 정보 확인
+      chrome.tabs.get(tabId, (tab) => {
         if (chrome.runtime.lastError) {
-          console.error('Content script 주입 실패:', chrome.runtime.lastError.message);
-          resolve(false);
-        } else {
-          console.log('Content script 주입 성공:', results);
-          // CSS도 주입
-          chrome.scripting.insertCSS({
-            target: { tabId: tabId },
-            files: ['content.css']
-          }, () => {
-            if (chrome.runtime.lastError) {
-              console.error('CSS 주입 실패:', chrome.runtime.lastError.message);
-            } else {
-              console.log('CSS 주입 성공');
-            }
-            // 약간의 지연 후에 성공으로 처리 (스크립트 초기화 시간 고려)
-            setTimeout(() => resolve(true), 500);
-          });
+          console.error(`탭 정보 가져오기 실패 (탭 ${tabId}):`, chrome.runtime.lastError.message);
+          reject(chrome.runtime.lastError);
+          return;
         }
+        
+        // 주입 불가능한 URL 확인
+        const url = tab.url || '';
+        if (url.startsWith('chrome://') || 
+            url.startsWith('chrome-extension://') || 
+            url.startsWith('about:') || 
+            url.startsWith('edge://') || 
+            url.startsWith('brave://') ||
+            url.startsWith('view-source:') ||
+            url.startsWith('devtools://') ||
+            url === '') {
+          console.log(`주입 불가능한 URL: ${url} (탭 ${tabId})`);
+          reject(new Error(`Cannot inject content script to ${url}`));
+          return;
+        }
+        
+        // 안전한 URL이라면 CSS 주입
+        chrome.scripting.insertCSS({
+          target: { tabId: tabId },
+          files: ['content.css']
+        })
+        .then(() => {
+          console.log(`CSS 주입 성공 (탭 ${tabId})`);
+          
+          // 그 다음 JS 주입
+          return chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['content.js']
+          });
+        })
+        .then(() => {
+          console.log(`JS 주입 성공 (탭 ${tabId})`);
+          resolve(true);
+        })
+        .catch(error => {
+          console.error(`스크립트 주입 오류 (탭 ${tabId}):`, error);
+          reject(error);
+        });
       });
     });
   });
@@ -182,40 +215,51 @@ async function sendMessageToTab(tabId, message) {
         url.startsWith('about:') || 
         url.startsWith('edge://') || 
         url.startsWith('brave://') ||
+        url.startsWith('view-source:') ||
+        url.startsWith('devtools://') ||
         url === '') {
       console.log('메시지를 보낼 수 없는 페이지입니다', url);
-      return;
+      return { success: false, error: 'Cannot access this URL type' };
     }
     
     // content script가 로드되었는지 확인
-    let isLoaded = await isContentScriptLoaded(tabId);
+    let isLoaded = await isContentScriptLoaded(tabId).catch(() => false);
     
     // 로드되지 않았다면 주입 시도
     if (!isLoaded) {
       console.log('Content script가 로드되지 않아 주입을 시도합니다');
-      const injected = await injectContentScript(tabId);
-      if (injected) {
-        // 주입 후 다시 확인
-        isLoaded = await isContentScriptLoaded(tabId);
+      try {
+        const injected = await injectContentScript(tabId);
+        if (injected) {
+          // 주입 후 다시 확인
+          isLoaded = await isContentScriptLoaded(tabId).catch(() => false);
+        }
+      } catch (error) {
+        console.error('Content script 주입 실패:', error);
+        return { success: false, error: error.message };
       }
     }
     
     if (!isLoaded) {
       console.log('Content script가 로드되지 않아 메시지를 보낼 수 없습니다.');
-      return;
+      return { success: false, error: 'Content script not loaded' };
     }
     
     // 탭이 존재하고 content script가 로드되었으면 메시지 전송 시도
-    chrome.tabs.sendMessage(tabId, message, (response) => {
-      if (chrome.runtime.lastError) {
-        console.log('메시지 전송 실패:', chrome.runtime.lastError.message);
-        // 오류가 발생해도 무시하고 계속 진행
-      } else if (response) {
-        console.log('메시지 전송 성공, 응답:', response);
-      }
+    return new Promise((resolve) => {
+      chrome.tabs.sendMessage(tabId, message, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('메시지 전송 실패:', chrome.runtime.lastError.message);
+          resolve({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          console.log('메시지 전송 성공, 응답:', response);
+          resolve({ success: true, response });
+        }
+      });
     });
   } catch (error) {
     console.error('메시지 전송 중 오류 발생:', error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -255,56 +299,35 @@ chrome.action.onClicked.addListener((tab) => {
   });
 });
 
-// 확장 프로그램 설치 또는 업데이트 시 설정 페이지 열기
-chrome.runtime.onInstalled.addListener((details) => {
-  console.log('BookStaxx 확장 프로그램이 설치되었습니다', details.reason);
-  
-  // 기본 설정 초기화
-  const defaultSettings = {
-    bookmarkButton: {
-      position: { top: '100px', left: '10px' },
-      size: { width: '40px', height: '40px' },
-      image: null,
-      visible: true
-    },
-    bookmarkBar: {
-      position: 'top',
-      displayStyle: 'smallIconsOnly'
-    }
-  };
-  
-  // 설정 저장
-  chrome.storage.local.set({ 'bookStaxxSettings': defaultSettings }, () => {
-    console.log('기본 설정이 저장되었습니다.');
-  });
-});
-
 // 북마크 변경 이벤트 리스너
-chrome.bookmarks.onCreated.addListener(() => {
-  console.log('북마크가 생성되었습니다');
+chrome.bookmarks.onCreated.addListener((id, bookmark) => {
   notifyBookmarkChange();
 });
 
-chrome.bookmarks.onRemoved.addListener(() => {
-  console.log('북마크가 삭제되었습니다');
+chrome.bookmarks.onRemoved.addListener((id, removeInfo) => {
   notifyBookmarkChange();
 });
 
-chrome.bookmarks.onChanged.addListener(() => {
-  console.log('북마크가 변경되었습니다');
+chrome.bookmarks.onChanged.addListener((id, changeInfo) => {
   notifyBookmarkChange();
 });
 
-chrome.bookmarks.onMoved.addListener(() => {
-  console.log('북마크가 이동되었습니다');
+chrome.bookmarks.onMoved.addListener((id, moveInfo) => {
   notifyBookmarkChange();
 });
 
-// 모든 탭에 북마크 변경 알림을 보내는 함수
+// 북마크 변경 알림 함수
 function notifyBookmarkChange() {
+  console.log('북마크 변경 감지, 모든 탭에 알림');
+  
+  // 모든 탭에 북마크 변경 알림
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => {
-      sendMessageToTab(tab.id, { action: 'bookmarksUpdated' });
+      chrome.tabs.sendMessage(tab.id, { action: 'bookmarkChanged' })
+        .catch(error => {
+          // 오류 무시 (일부 탭에서는 콘텐츠 스크립트가 로드되지 않았을 수 있음)
+          console.log(`탭 ${tab.id}에 알림 실패:`, error);
+        });
     });
   });
 }
@@ -359,4 +382,200 @@ function flattenBookmarks(bookmarkNode) {
   }
   
   return bookmarks;
-} 
+}
+
+// 탭 업데이트 이벤트 리스너 (페이지 로드 감지)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // 로딩 상태 또는 완료 상태일 때 북마크 바 초기화 시도
+  if (changeInfo.status === 'loading' || changeInfo.status === 'complete') {
+    console.log(`탭 ${tabId} 상태 변경: ${changeInfo.status}`);
+    
+    // 북마크 바 초기화 메시지 전송
+    initializeBookmarkBar(tabId);
+  }
+});
+
+// 북마크 바 초기화 함수
+function initializeBookmarkBar(tabId) {
+  // 먼저 탭 정보 확인
+  chrome.tabs.get(tabId, (tab) => {
+    if (chrome.runtime.lastError) {
+      console.error(`탭 정보 가져오기 실패 (탭 ${tabId}):`, chrome.runtime.lastError.message);
+      return;
+    }
+    
+    // 주입 불가능한 URL 확인
+    const url = tab.url || '';
+    if (url.startsWith('chrome://') || 
+        url.startsWith('chrome-extension://') || 
+        url.startsWith('about:') || 
+        url.startsWith('edge://') || 
+        url.startsWith('brave://') ||
+        url.startsWith('view-source:') ||
+        url.startsWith('devtools://') ||
+        url === '') {
+      console.log(`북마크 바를 초기화할 수 없는 URL: ${url} (탭 ${tabId})`);
+      return;
+    }
+    
+    // 콘텐츠 스크립트에 메시지 전송
+    chrome.tabs.sendMessage(tabId, { action: 'initBookmarkBar' }, (response) => {
+      // 응답이 없거나 오류가 발생한 경우 (콘텐츠 스크립트가 로드되지 않았을 수 있음)
+      if (chrome.runtime.lastError) {
+        console.log(`탭 ${tabId}에 콘텐츠 스크립트 주입 필요:`, chrome.runtime.lastError.message);
+        
+        // 콘텐츠 스크립트 주입 시도
+        injectContentScript(tabId)
+          .then(() => {
+            // 주입 성공 후 약간의 지연을 두고 다시 초기화 시도
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, { action: 'initBookmarkBar' }, (response) => {
+                if (chrome.runtime.lastError) {
+                  console.log(`재시도 후에도 초기화 실패:`, chrome.runtime.lastError.message);
+                } else {
+                  console.log(`북마크 바 초기화 성공 (재시도 후):`, response);
+                }
+              });
+            }, 500);
+          })
+          .catch(error => {
+            console.error(`콘텐츠 스크립트 주입 실패:`, error);
+          });
+      } else if (response) {
+        console.log(`북마크 바 초기화 성공:`, response);
+      }
+    });
+  });
+}
+
+// 북마크 추가 함수
+function addBookmark(title, url) {
+  return new Promise((resolve, reject) => {
+    // 북마크 폴더 ID 가져오기 (또는 생성)
+    getOrCreateBookmarkFolder()
+      .then(folderId => {
+        // 북마크 생성
+        chrome.bookmarks.create({
+          parentId: folderId,
+          title: title,
+          url: url
+        }, (bookmark) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(bookmark);
+          }
+        });
+      })
+      .catch(reject);
+  });
+}
+
+// 북마크 폴더 가져오기 또는 생성
+function getOrCreateBookmarkFolder() {
+  return new Promise((resolve, reject) => {
+    // 'BookStaxx' 폴더 찾기
+    chrome.bookmarks.search({ title: 'BookStaxx' }, (results) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      
+      // 폴더가 이미 존재하는 경우
+      const folder = results.find(b => !b.url);
+      if (folder) {
+        resolve(folder.id);
+        return;
+      }
+      
+      // 폴더가 없으면 생성
+      chrome.bookmarks.create({
+        title: 'BookStaxx'
+      }, (newFolder) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(newFolder.id);
+        }
+      });
+    });
+  });
+}
+
+// 북마크 목록 가져오기
+function getBookmarks() {
+  return new Promise((resolve, reject) => {
+    // 'BookStaxx' 폴더 찾기
+    chrome.bookmarks.search({ title: 'BookStaxx' }, (results) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      
+      // 폴더가 없는 경우 빈 배열 반환
+      const folder = results.find(b => !b.url);
+      if (!folder) {
+        resolve([]);
+        return;
+      }
+      
+      // 폴더 내 북마크 가져오기
+      chrome.bookmarks.getChildren(folder.id, (bookmarks) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(bookmarks);
+        }
+      });
+    });
+  });
+}
+
+// 탭 활성화 이벤트 리스너 (탭 전환 감지)
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  console.log(`탭 ${activeInfo.tabId} 활성화됨`);
+  
+  // 활성화된 탭 정보 가져오기
+  chrome.tabs.get(activeInfo.tabId, (tab) => {
+    if (chrome.runtime.lastError) {
+      console.error('탭 정보 가져오기 실패:', chrome.runtime.lastError.message);
+      return;
+    }
+    
+    // 유효한 URL인 경우에만 처리
+    if (tab.url && tab.url.startsWith('http')) {
+      // 콘텐츠 스크립트가 로드되었는지 확인하고 북마크바 초기화 메시지 전송
+      isContentScriptLoaded(activeInfo.tabId)
+        .then(loaded => {
+          if (loaded) {
+            // 콘텐츠 스크립트에 북마크바 초기화 메시지 전송
+            sendMessageToTab(activeInfo.tabId, { action: 'initBookmarkBar' })
+              .then(response => {
+                console.log('탭 활성화 시 북마크바 초기화 메시지 전송 성공:', response);
+              })
+              .catch(error => {
+                console.error('탭 활성화 시 북마크바 초기화 메시지 전송 실패:', error);
+                
+                // 에러가 발생하면 약간 지연 후 다시 시도
+                setTimeout(() => {
+                  sendMessageToTab(activeInfo.tabId, { action: 'initBookmarkBar' })
+                    .catch(err => console.log('재시도 실패:', err));
+                }, 300);
+              });
+          } else {
+            console.log(`탭 ${activeInfo.tabId}에 콘텐츠 스크립트가 로드되지 않음, 주입 시도...`);
+            injectContentScript(activeInfo.tabId)
+              .then(injected => {
+                if (injected) {
+                  // 주입 성공 후 약간의 지연을 두고 북마크바 초기화 메시지 전송
+                  setTimeout(() => {
+                    sendMessageToTab(activeInfo.tabId, { action: 'initBookmarkBar' })
+                      .catch(err => console.log('주입 후 초기화 실패:', err));
+                  }, 100);
+                }
+              });
+          }
+        });
+    }
+  });
+}); 

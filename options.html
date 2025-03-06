@@ -5,330 +5,545 @@
   <title>BookStaxx 설정</title>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
       margin: 0;
       padding: 20px;
       background-color: #f5f5f5;
       color: #333;
+    }
+    
+    .container {
       max-width: 800px;
       margin: 0 auto;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
     }
     
     h1 {
-      color: #4285f4;
-      border-bottom: 1px solid #e0e0e0;
-      padding-bottom: 10px;
-      margin-bottom: 20px;
-    }
-    
-    .section {
-      background-color: white;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-    
-    .section-title {
-      font-size: 18px;
-      font-weight: 500;
+      color: #4285F4;
       margin-top: 0;
-      margin-bottom: 15px;
-      color: #4285f4;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
     }
     
-    .form-group {
+    h2 {
+      color: #555;
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    
+    .option-section {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .option-row {
+      display: flex;
+      align-items: center;
       margin-bottom: 15px;
     }
     
-    label {
-      display: block;
-      margin-bottom: 5px;
+    .option-label {
+      flex: 0 0 200px;
       font-weight: 500;
     }
     
-    select, input[type="checkbox"], input[type="range"], input[type="color"] {
+    .option-control {
+      flex: 1;
+    }
+    
+    select, input[type="range"], input[type="checkbox"], input[type="text"], input[type="number"] {
       padding: 8px;
-      border: 1px solid #ddd;
       border-radius: 4px;
+      border: 1px solid #ddd;
+      font-size: 14px;
       width: 100%;
       max-width: 300px;
-      box-sizing: border-box;
     }
     
-    input[type="checkbox"] {
-      width: auto;
-    }
-    
-    input[type="range"] {
-      padding: 0;
-    }
-    
-    button {
-      background-color: #4285f4;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.2s;
-    }
-    
-    button:hover {
-      background-color: #5294ff;
-    }
-    
-    .small-button {
-      padding: 5px 10px;
-      font-size: 12px;
-      margin-left: 10px;
+    input[type="file"] {
+      margin-top: 10px;
     }
     
     .preview-container {
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 20px;
       margin-top: 20px;
+      border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 4px;
+      background-color: #f9f9f9;
       position: relative;
       height: 200px;
-      background-color: #f9f9f9;
       overflow: hidden;
     }
     
-    .preview-bookmark-bar {
-      position: absolute;
-      background-color: #f1f3f4;
-      border: 1px solid #dadce0;
-      display: flex;
-      padding: 5px;
+    .preview-title {
+      font-weight: 500;
+      margin-bottom: 10px;
     }
     
-    .preview-bookmark-bar[data-position="top"] {
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 30px;
-      flex-direction: row;
-    }
-    
-    .preview-bookmark-bar[data-position="bottom"] {
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 30px;
-      flex-direction: row;
-    }
-    
-    .preview-bookmark-bar[data-position="left"] {
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: 30px;
-      flex-direction: column;
-    }
-    
-    .preview-bookmark-bar[data-position="right"] {
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 30px;
-      flex-direction: column;
-    }
-    
-    .preview-bookmark-item {
+    .bookmark-bar-preview {
+      height: 40px;
       display: flex;
       align-items: center;
-      padding: 5px;
-      margin: 2px;
-      background-color: rgba(255, 255, 255, 0.7);
+      padding: 0 10px;
       border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s;
     }
     
-    .preview-bookmark-icon {
+    .bookmark-item-preview {
+      display: flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 4px;
+      margin-right: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .bookmark-item-preview:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    .bookmark-icon-preview {
       width: 16px;
       height: 16px;
+      margin-right: 8px;
       background-color: #5f6368;
-      border-radius: 2px;
+      border-radius: 3px;
     }
     
-    .preview-bookmark-text {
-      margin-left: 5px;
+    .bookmark-text-preview {
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    
+    .color-picker-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .color-picker {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .color-value {
+      flex: 1;
+      max-width: 100px;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+    
+    .color-preset {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      margin: 0 5px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      transition: transform 0.2s;
+    }
+    
+    .color-preset:hover {
+      transform: scale(1.1);
+    }
+    
+    .icon-size-options {
+      display: flex;
+      gap: 15px;
+    }
+    
+    .icon-size-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+    
+    .icon-size-preview {
+      margin-bottom: 5px;
+      background-color: #5f6368;
+      border-radius: 3px;
+    }
+    
+    .icon-size-small {
+      width: 12px;
+      height: 12px;
+    }
+    
+    .icon-size-medium {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .icon-size-large {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .icon-size-label {
       font-size: 12px;
     }
     
-    .preview-bookmark-button {
+    .button-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+      gap: 10px;
+    }
+    
+    button {
+      padding: 8px 20px;
+      border-radius: 4px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .save-button {
+      background-color: #4285F4;
+      color: white;
+    }
+    
+    .save-button:hover {
+      background-color: #3367d6;
+    }
+    
+    .reset-button {
+      background-color: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+    
+    .reset-button:hover {
+      background-color: #e0e0e0;
+    }
+    
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #4285f4;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      transition: opacity 0.3s;
+      z-index: 1000;
+      animation: fade-in 0.3s;
+      opacity: 0;
+    }
+    
+    .notification.show {
+      opacity: 1;
+    }
+    
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .add-bookmark-button-preview {
       position: absolute;
       width: 40px;
       height: 40px;
-      background-color: #4285f4;
       border-radius: 50%;
+      background-color: #4285F4;
+      color: white;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      font-size: 24px;
+      font-size: 20px;
       font-weight: bold;
-      bottom: 20px;
-      right: 20px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      bottom: 10px;
+      right: 10px;
     }
     
-    .settings-description {
-      margin-top: 15px;
-      padding: 10px;
-      background-color: #e8f0fe;
+    .image-preview {
+      max-width: 100px;
+      max-height: 100px;
+      margin-top: 10px;
+      border: 1px solid #ddd;
       border-radius: 4px;
-      color: #4285f4;
-      font-size: 14px;
-    }
-    
-    .message {
-      padding: 10px 15px;
-      border-radius: 4px;
-      margin-top: 20px;
       display: none;
-      transition: opacity 0.5s;
     }
     
-    .message.success {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
+    .chrome-link {
+      margin-top: 10px;
+      display: block;
+      color: #4285F4;
+      text-decoration: none;
     }
     
-    .message.error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+    .chrome-link:hover {
+      text-decoration: underline;
     }
     
-    .message.info {
-      background-color: #d1ecf1;
-      color: #0c5460;
-      border: 1px solid #bee5eb;
+    .transparent {
+      background-color: transparent !important;
+      box-shadow: none !important;
     }
     
-    .message.description {
-      background-color: #e8f0fe;
-      color: #4285f4;
-      font-size: 14px;
+    .semi-transparent {
+      background-color: rgba(241, 243, 244, 0.7) !important;
     }
     
-    footer {
-      margin-top: 30px;
-      text-align: center;
-      color: #666;
-      font-size: 12px;
+    .hide-text .bookmark-text-preview {
+      display: none;
     }
     
-    .description {
-      font-size: 12px;
-      color: #666;
-      margin-top: 5px;
+    .icon-small .bookmark-icon-preview {
+      width: 12px;
+      height: 12px;
+    }
+    
+    .icon-medium .bookmark-icon-preview {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .icon-large .bookmark-icon-preview {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .text-small .bookmark-text-preview {
+      font-size: 11px;
+    }
+    
+    .text-medium .bookmark-text-preview {
+      font-size: 13px;
+    }
+    
+    .text-large .bookmark-text-preview {
+      font-size: 15px;
     }
   </style>
 </head>
 <body>
-  <h1>BookStaxx 설정</h1>
-  
-  <div class="section">
-    <h2 class="section-title">북마크 바 설정</h2>
+  <div class="container">
+    <h1 id="options-title">BookStaxx 설정</h1>
     
-    <div class="form-group">
-      <label for="bookmark-bar-position">북마크 바 위치:</label>
-      <select id="bookmark-bar-position">
-        <option value="top">상단</option>
-        <option value="bottom">하단</option>
-        <option value="left">왼쪽</option>
-        <option value="right">오른쪽</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label for="bookmark-display-style">북마크 표시 스타일:</label>
-      <select id="bookmark-display-style">
-        <option value="smallIconsOnly">작은 아이콘만</option>
-        <option value="smallIconsWithText">작은 아이콘 + 텍스트</option>
-        <option value="largeIconsOnly">큰 아이콘만</option>
-        <option value="largeIconsWithText">큰 아이콘 + 텍스트</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label>
-        <input type="checkbox" id="hide-chrome-bookmark-bar" checked>
-        기존 Chrome 북마크 바 숨기기
-      </label>
-      <p class="description">체크 시 Chrome의 기본 북마크 바를 숨기고 BookStaxx 북마크 바만 표시합니다.</p>
-    </div>
-  </div>
-  
-  <div class="section">
-    <h2 class="section-title">북마크 바 디자인</h2>
-    
-    <div class="form-group">
-      <label for="opacity-slider">북마크 바 투명도:</label>
-      <input type="range" id="opacity-slider" min="0" max="100" value="100" step="5">
-      <span id="opacity-value">100%</span>
-      <p class="description">북마크 바의 투명도를 조절합니다. 0%는 완전 투명, 100%는 불투명입니다.</p>
-    </div>
-    
-    <div class="form-group">
-      <label for="background-color">북마크 바 배경색:</label>
-      <input type="color" id="background-color" value="#f1f3f4">
-      <button id="reset-color" class="small-button">기본값</button>
-      <button id="transparent-color" class="small-button">투명</button>
-      <p class="description">북마크 바의 배경색을 선택합니다. '투명' 버튼을 클릭하면 배경이 완전히 투명해집니다.</p>
-    </div>
-    
-    <div class="form-group">
-      <label>북마크 여백:</label>
-      <div>
-        <label><input type="radio" name="padding" value="small"> 작게</label>
-        <label><input type="radio" name="padding" value="medium" checked> 중간</label>
-        <label><input type="radio" name="padding" value="large"> 크게</label>
+    <div id="bookmark-bar-section" class="option-section">
+      <h2 id="bookmark-bar-title">북마크 바 설정</h2>
+      
+      <div class="option-row">
+        <div class="option-label" id="position-label">북마크 바 위치</div>
+        <div class="option-control">
+          <select id="position">
+            <option value="top" id="position-top">상단</option>
+            <option value="bottom" id="position-bottom">하단</option>
+            <option value="left" id="position-left">좌측</option>
+            <option value="right" id="position-right">우측</option>
+          </select>
+        </div>
       </div>
-      <p class="description">북마크 바의 내부 여백을 설정합니다.</p>
-    </div>
-    
-    <div class="form-group">
-      <label>북마크 바 테두리:</label>
-      <div>
-        <label><input type="radio" name="border" value="none"> 없음</label>
-        <label><input type="radio" name="border" value="thin" checked> 얇게</label>
-        <label><input type="radio" name="border" value="medium"> 중간</label>
-        <label><input type="radio" name="border" value="thick"> 두껍게</label>
+      
+      <div class="option-row">
+        <div class="option-label" id="bar-style-label">스타일 모드</div>
+        <div class="option-control">
+          <select id="bar-style">
+            <option value="normal" id="style-normal">일반</option>
+            <option value="semi-transparent" id="style-semi-transparent">반투명</option>
+            <option value="transparent" id="style-transparent">투명</option>
+          </select>
+        </div>
       </div>
-      <p class="description">북마크 바의 테두리 스타일을 설정합니다.</p>
+      
+      <div class="option-row">
+        <div class="option-label" id="opacity-label">투명도</div>
+        <div class="option-control">
+          <input type="range" id="opacity" min="30" max="100" step="5" value="100">
+          <span id="opacity-value">100%</span>
+        </div>
+      </div>
+      
+      <div class="option-row">
+        <div class="option-label" id="background-color-label">배경색</div>
+        <div class="option-control">
+          <div class="color-picker-container">
+            <input type="color" id="background-color" class="color-picker">
+            <input type="text" id="background-color-value" class="color-value" value="#f1f3f4">
+            <div class="color-presets">
+              <div class="color-preset" style="background-color: #f1f3f4;" data-color="#f1f3f4"></div>
+              <div class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></div>
+              <div class="color-preset" style="background-color: #e8eaed;" data-color="#e8eaed"></div>
+              <div class="color-preset" style="background-color: #f8f9fa;" data-color="#f8f9fa"></div>
+              <div class="color-preset" style="background-color: #202124;" data-color="#202124"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="option-row">
+        <div class="option-label" id="text-color-label">글자색</div>
+        <div class="option-control">
+          <div class="color-picker-container">
+            <input type="color" id="text-color" class="color-picker">
+            <input type="text" id="text-color-value" class="color-value" value="#333333">
+            <div class="color-presets">
+              <div class="color-preset" style="background-color: #333333;" data-color="#333333"></div>
+              <div class="color-preset" style="background-color: #000000;" data-color="#000000"></div>
+              <div class="color-preset" style="background-color: #757575;" data-color="#757575"></div>
+              <div class="color-preset" style="background-color: #4285F4;" data-color="#4285F4"></div>
+              <div class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="option-row">
+        <div class="option-label" id="icon-size-label">아이콘 크기</div>
+        <div class="option-control">
+          <select id="icon-size">
+            <option value="small" id="icon-size-small">작게</option>
+            <option value="medium" id="icon-size-medium">중간</option>
+            <option value="large" id="icon-size-large">크게</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="option-row">
+        <div class="option-label" id="show-text-label">텍스트 표시</div>
+        <div class="option-control">
+          <input type="checkbox" id="show-text" checked>
+        </div>
+      </div>
+      
+      <div class="option-row">
+        <div class="option-label" id="text-size-label">텍스트 크기</div>
+        <div class="option-control">
+          <select id="text-size">
+            <option value="small" id="text-size-small">작게</option>
+            <option value="medium" id="text-size-medium">중간</option>
+            <option value="large" id="text-size-large">크게</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="option-row">
+        <div class="option-label" id="max-text-length-label">최대 텍스트 길이</div>
+        <div class="option-control">
+          <input type="range" id="max-text-length" min="3" max="30" step="1" value="15">
+          <span id="max-text-length-value">15</span>
+        </div>
+      </div>
+      
+      <div class="option-row">
+        <div class="option-label" id="hide-chrome-label">Chrome 북마크 바 숨기기</div>
+        <div class="option-control">
+          <input type="checkbox" id="hide-chrome">
+          <a href="chrome://settings/appearance" target="_blank" class="chrome-link" id="chrome-settings-link">Chrome 설정에서 북마크 바 관리하기</a>
+        </div>
+      </div>
     </div>
-  </div>
-  
-  <div class="section">
-    <h2 class="section-title">북마크 버튼 설정</h2>
     
-    <div class="form-group">
-      <label>
-        <input type="checkbox" id="show-bookmark-button" checked>
-        북마크 버튼 표시
-      </label>
-      <p class="description">체크 해제 시 북마크 버튼이 표시되지 않으며, 확장 프로그램 아이콘을 클릭하여 북마크를 추가할 수 있습니다.</p>
+    <div id="bookmark-button-section" class="option-section">
+      <h2 id="bookmark-button-title">북마크 추가 버튼 설정</h2>
+      
+      <div class="option-row">
+        <div class="option-label" id="show-button-label">버튼 표시</div>
+        <div class="option-control">
+          <input type="checkbox" id="show-button" checked>
+        </div>
+      </div>
+      
+      <div id="button-settings-section">
+        <div class="option-row">
+          <div class="option-label" id="button-position-label">버튼 위치</div>
+          <div class="option-control">
+            <select id="button-position">
+              <option value="topLeft" id="button-position-top-left">좌측 상단</option>
+              <option value="topRight" id="button-position-top-right">우측 상단</option>
+              <option value="bottomLeft" id="button-position-bottom-left">좌측 하단</option>
+              <option value="bottomRight" id="button-position-bottom-right">우측 하단</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="option-row">
+          <div class="option-label" id="button-size-label">버튼 크기</div>
+          <div class="option-control">
+            <input type="range" id="button-size" min="20" max="60" step="5" value="40">
+            <span id="button-size-value">40px</span>
+          </div>
+        </div>
+        
+        <div class="option-row">
+          <div class="option-label" id="button-color-label">버튼 색상</div>
+          <div class="option-control">
+            <div class="color-picker-container">
+              <input type="color" id="button-color" class="color-picker" value="#4285F4">
+              <input type="text" id="button-color-value" class="color-value" value="#4285F4">
+            </div>
+          </div>
+        </div>
+        
+        <div class="option-row">
+          <div class="option-label" id="button-text-color-label">버튼 텍스트 색상</div>
+          <div class="option-control">
+            <div class="color-picker-container">
+              <input type="color" id="button-text-color" class="color-picker" value="#FFFFFF">
+              <input type="text" id="button-text-color-value" class="color-value" value="#FFFFFF">
+            </div>
+          </div>
+        </div>
+        
+        <div class="option-row">
+          <div class="option-label" id="button-image-label">버튼 이미지</div>
+          <div class="option-control">
+            <input type="file" id="button-image" accept="image/*">
+            <img id="button-image-preview" class="image-preview">
+            <button id="reset-image-button" class="reset-button" style="display: none; margin-top: 10px;">이미지 초기화</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="preview-section" class="option-section">
+      <h2 id="preview-title">미리보기</h2>
+      
+      <div class="preview-container">
+        <div class="bookmark-bar-preview" id="bookmark-preview">
+          <div class="bookmark-item-preview">
+            <div class="bookmark-icon-preview"></div>
+            <div class="bookmark-text-preview">Google</div>
+          </div>
+          <div class="bookmark-item-preview">
+            <div class="bookmark-icon-preview"></div>
+            <div class="bookmark-text-preview">YouTube</div>
+          </div>
+          <div class="bookmark-item-preview">
+            <div class="bookmark-icon-preview"></div>
+            <div class="bookmark-text-preview">Gmail</div>
+          </div>
+        </div>
+        
+        <div class="add-bookmark-button-preview" id="button-preview">+</div>
+      </div>
+    </div>
+    
+    <div class="button-row">
+      <button id="reset-button" class="reset-button">초기화</button>
+      <button id="save-button" class="save-button">저장</button>
     </div>
   </div>
   
-  <div class="section">
-    <h2 class="section-title">미리보기</h2>
-    <div id="preview-container" class="preview-container"></div>
-    <div id="settings-description" class="settings-description"></div>
-  </div>
-  
-  <button id="save-button">설정 저장</button>
-  
-  <div id="message" class="message"></div>
-  
-  <footer>
-    <p>BookStaxx 확장 프로그램 &copy; 2023</p>
-  </footer>
+  <div id="notification" class="notification"></div>
   
   <script src="options.js"></script>
 </body>

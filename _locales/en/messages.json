@@ -1,0 +1,254 @@
+{
+  "extName": {
+    "message": "BookStaxx",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Add a bookmark bar to web pages for easy bookmark management and access.",
+    "description": "Extension description"
+  },
+  "addBookmark": {
+    "message": "Add Bookmark",
+    "description": "Bookmark add button tooltip"
+  },
+  "optionsTitle": {
+    "message": "BookStaxx Settings",
+    "description": "Options page title"
+  },
+  "appearanceTitle": {
+    "message": "Appearance Settings",
+    "description": "Appearance settings section title"
+  },
+  "positionLabel": {
+    "message": "Bookmark Bar Position",
+    "description": "Bookmark bar position setting label"
+  },
+  "positionTop": {
+    "message": "Top",
+    "description": "Top position option"
+  },
+  "positionBottom": {
+    "message": "Bottom",
+    "description": "Bottom position option"
+  },
+  "positionLeft": {
+    "message": "Left",
+    "description": "Left position option"
+  },
+  "positionRight": {
+    "message": "Right",
+    "description": "Right position option"
+  },
+  "opacityLabel": {
+    "message": "Opacity",
+    "description": "Opacity setting label"
+  },
+  "backgroundColorLabel": {
+    "message": "Background Color",
+    "description": "Background color setting label"
+  },
+  "textColorLabel": {
+    "message": "Text Color",
+    "description": "Text color setting label"
+  },
+  "iconSizeLabel": {
+    "message": "Icon Size",
+    "description": "Icon size setting label"
+  },
+  "sizeSmall": {
+    "message": "Small",
+    "description": "Small size option"
+  },
+  "sizeMedium": {
+    "message": "Medium",
+    "description": "Medium size option"
+  },
+  "sizeLarge": {
+    "message": "Large",
+    "description": "Large size option"
+  },
+  "showTextLabel": {
+    "message": "Show Text",
+    "description": "Show text setting label"
+  },
+  "previewTitle": {
+    "message": "Preview",
+    "description": "Preview section title"
+  },
+  "previewText": {
+    "message": "Google",
+    "description": "Preview text"
+  },
+  "resetButton": {
+    "message": "Reset",
+    "description": "Reset button text"
+  },
+  "saveButton": {
+    "message": "Save",
+    "description": "Save button text"
+  },
+  "settingsSaved": {
+    "message": "Settings saved",
+    "description": "Settings save success message"
+  },
+  "settingsReset": {
+    "message": "Settings reset",
+    "description": "Settings reset success message"
+  },
+  "bookmarkAdded": {
+    "message": "Bookmark added",
+    "description": "Bookmark add success message"
+  },
+  "bookmarkExists": {
+    "message": "Already bookmarked",
+    "description": "Bookmark already exists message"
+  },
+  "bookmarkRemoved": {
+    "message": "Bookmark removed",
+    "description": "Bookmark removed success message"
+  },
+  "noBookmarks": {
+    "message": "No bookmarks. Click the '+' button to add bookmarks.",
+    "description": "Message shown when no bookmarks exist"
+  },
+  "clickToAdd": {
+    "message": "Click to add bookmark",
+    "description": "Click to add bookmark message"
+  },
+  "edit": {
+    "message": "Edit",
+    "description": "Edit button text"
+  },
+  "delete": {
+    "message": "Delete",
+    "description": "Delete button text"
+  },
+  "cancel": {
+    "message": "Cancel",
+    "description": "Cancel button text"
+  },
+  "confirm": {
+    "message": "Confirm",
+    "description": "Confirm button text"
+  },
+  "editBookmark": {
+    "message": "Edit Bookmark",
+    "description": "Edit bookmark dialog title"
+  },
+  "bookmarkName": {
+    "message": "Name",
+    "description": "Bookmark name field label"
+  },
+  "bookmarkUrl": {
+    "message": "URL",
+    "description": "Bookmark URL field label"
+  },
+  "bookmarkAddFailed": {
+    "message": "Failed to add bookmark",
+    "description": "Bookmark add failed message"
+  },
+  "loadingBookmarks": {
+    "message": "Loading bookmarks...",
+    "description": "Bookmark loading message"
+  },
+  "options": {
+    "message": "Options",
+    "description": "Options page title"
+  },
+  "appearanceSettings": {
+    "message": "Appearance Settings",
+    "description": "Appearance settings section title"
+  },
+  "barPosition": {
+    "message": "Bookmark Bar Position",
+    "description": "Bookmark bar position setting"
+  },
+  "barOpacity": {
+    "message": "Opacity",
+    "description": "Bookmark bar opacity setting"
+  },
+  "barColor": {
+    "message": "Background Color",
+    "description": "Bookmark bar background color setting"
+  },
+  "textColor": {
+    "message": "Text Color",
+    "description": "Bookmark bar text color setting"
+  },
+  "iconSize": {
+    "message": "Icon Size",
+    "description": "Bookmark icon size setting"
+  },
+  "showText": {
+    "message": "Show Text",
+    "description": "Show text setting label"
+  },
+  "save": {
+    "message": "Save",
+    "description": "Save button text"
+  },
+  "reset": {
+    "message": "Reset",
+    "description": "Reset button text"
+  },
+  "savedSettings": {
+    "message": "Settings saved!",
+    "description": "Settings saved success message"
+  },
+  "resetSettings": {
+    "message": "Settings reset to defaults!",
+    "description": "Settings reset success message"
+  },
+  "bookmarkError": {
+    "message": "Error adding bookmark",
+    "description": "Bookmark add error message"
+  },
+  "generalSettings": {
+    "message": "General Settings",
+    "description": "General settings section title"
+  },
+  "bookmarkBarSettings": {
+    "message": "Bookmark Bar Settings",
+    "description": "Bookmark bar settings section title"
+  },
+  "bookmarkButtonSettings": {
+    "message": "Bookmark Button Settings",
+    "description": "Bookmark button settings section title"
+  },
+  "position": {
+    "message": "Position",
+    "description": "Position setting label"
+  },
+  "top": {
+    "message": "Top",
+    "description": "Top position option"
+  },
+  "bottom": {
+    "message": "Bottom",
+    "description": "Bottom position option"
+  },
+  "left": {
+    "message": "Left",
+    "description": "Left position option"
+  },
+  "right": {
+    "message": "Right",
+    "description": "Right position option"
+  },
+  "backgroundColor": {
+    "message": "Background Color",
+    "description": "Background color setting label"
+  },
+  "opacity": {
+    "message": "Opacity",
+    "description": "Opacity setting label"
+  },
+  "showBookmarkButton": {
+    "message": "Show Bookmark Button",
+    "description": "Show bookmark button setting label"
+  },
+  "hideChromeBookmarkBar": {
+    "message": "Hide Chrome Bookmark Bar",
+    "description": "Hide Chrome bookmark bar setting label"
+  }
+} 
