@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .bookmark-item {
+    @apply flex items-center px-3 py-2 rounded-lg transition-all duration-200 
+    hover:bg-apple-gray-100 active:bg-apple-gray-200 active:scale-95 transform
+    cursor-pointer animate-apple-fade-in;
+  }
+  
+  .bookmark-icon {
+    @apply w-6 h-6 flex-shrink-0 rounded transition-all duration-200;
+  }
+  
+  .bookmark-text {
+    @apply ml-2 text-sm text-apple-gray-700 truncate font-medium transition-colors;
+  }
+  
+  .bookmark-button {
+    @apply fixed w-12 h-12 rounded-full bg-apple-blue-500 text-white flex items-center justify-center 
+    shadow-apple-btn hover:shadow-apple-hover active:scale-95 transform cursor-pointer transition-all duration-200
+    animate-apple-bounce z-max;
+  }
+  
+  .bookmark-bar {
+    @apply fixed backdrop-blur-apple bg-white/85 dark:bg-apple-gray-900/85 border-0 
+    shadow-apple z-max transition-all duration-300 animate-apple-slide-down;
+  }
+  
+  .bookmark-bar-top {
+    @apply top-0 left-0 right-0 border-b border-apple-gray-200 dark:border-apple-gray-800;
+  }
+  
+  .bookmark-bar-bottom {
+    @apply bottom-0 left-0 right-0 border-t border-apple-gray-200 dark:border-apple-gray-800 animate-apple-slide-up;
+  }
+  
+  .bookmark-bar-left {
+    @apply top-0 left-0 bottom-0 w-auto min-w-[54px] flex-col border-r border-apple-gray-200 
+    dark:border-apple-gray-800 animate-apple-slide-down;
+  }
+  
+  .bookmark-bar-right {
+    @apply top-0 right-0 bottom-0 w-auto min-w-[54px] flex-col border-l border-apple-gray-200 
+    dark:border-apple-gray-800 animate-apple-slide-down;
+  }
+  
+  .bookmark-container {
+    @apply flex flex-wrap overflow-auto flex-1 p-1 gap-1;
+  }
+  
+  .bookmark-notification {
+    @apply fixed top-4 right-4 backdrop-blur-apple bg-white/90 dark:bg-apple-gray-800/90 px-4 py-3 
+    rounded-apple shadow-apple-card z-max transition-all duration-300 animate-apple-scale 
+    text-apple-gray-700 dark:text-apple-gray-100;
+  }
+  
+  .bookmark-info-message {
+    @apply fixed top-4 right-4 w-80 backdrop-blur-apple bg-white/90 dark:bg-apple-gray-800/90 
+    border border-apple-gray-200 dark:border-apple-gray-700 rounded-apple
+    shadow-apple-card z-max font-sans text-sm text-apple-gray-700 dark:text-apple-gray-100
+    animate-apple-scale;
+  }
+  
+  .info-header {
+    @apply flex items-center p-3 bg-apple-gray-50/90 dark:bg-apple-gray-700/50 border-b 
+    border-apple-gray-200 dark:border-apple-gray-700 rounded-t-apple;
+  }
+  
+  .info-content {
+    @apply p-4;
+  }
+  
+  .btn-primary {
+    @apply bg-apple-blue-500 text-white px-4 py-2 rounded-lg hover:bg-apple-blue-600 
+    active:bg-apple-blue-700 active:scale-95 transform transition-all duration-200 font-medium 
+    focus:outline-none focus:ring-2 focus:ring-apple-blue-500 focus:ring-offset-2;
+  }
+  
+  /* Apple-style form controls */
+  .apple-input {
+    @apply w-full px-4 py-2 rounded-lg border border-apple-gray-300 focus:border-apple-blue-500 
+    focus:ring focus:ring-apple-blue-200 focus:ring-opacity-50 bg-white/75 backdrop-blur-sm 
+    transition-all duration-200;
+  }
+  
+  .apple-select {
+    @apply w-full px-4 py-2 rounded-lg border border-apple-gray-300 focus:border-apple-blue-500
+    focus:ring focus:ring-apple-blue-200 focus:ring-opacity-50 bg-white/75 backdrop-blur-sm
+    transition-all duration-200 appearance-none;
+  }
+  
+  .apple-toggle {
+    @apply relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+    transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-apple-blue-500 
+    focus:ring-offset-2 bg-apple-gray-200;
+  }
+  
+  .apple-toggle[aria-checked="true"] {
+    @apply bg-apple-blue-500;
+  }
+  
+  .apple-toggle-knob {
+    @apply pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 
+    transition duration-200 ease-in-out translate-x-0;
+  }
+  
+  .apple-toggle[aria-checked="true"] .apple-toggle-knob {
+    @apply translate-x-5;
+  }
+  
+  /* Dark mode adjustments */
+  .dark .apple-input, .dark .apple-select {
+    @apply border-apple-gray-600 bg-apple-gray-800/75 text-white;
+  }
+  
+  /* Frosted glass containers */
+  .apple-glass {
+    @apply backdrop-blur-apple bg-white/85 dark:bg-apple-gray-800/85 rounded-apple
+    shadow-apple-card border border-white/20 dark:border-apple-gray-700/30;
+  }
+  
+  .apple-glass-no-border {
+    @apply backdrop-blur-apple bg-white/85 dark:bg-apple-gray-800/85 rounded-apple shadow-apple-card;
+  }
+  
+  /* Card with subtle hover effect */
+  .apple-card {
+    @apply bg-white dark:bg-apple-gray-800 rounded-apple shadow-apple
+    hover:shadow-apple-hover transition-all duration-200 overflow-hidden;
+  }
+  
+  /* Animations for items entering and exiting */
+  .apple-animate-in {
+    @apply animate-apple-fade-in;
+  }
+  
+  .apple-animate-in-up {
+    @apply animate-apple-slide-up;
+  }
+  
+  .apple-animate-in-down {
+    @apply animate-apple-slide-down;
+  }
+  
+  .apple-animate-scale {
+    @apply animate-apple-scale;
+  }
+  
+  .apple-animate-bounce {
+    @apply animate-apple-bounce;
+  }
+} 

@@ -1,549 +1,692 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BookStaxx 설정</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f5f5f5;
-      color: #333;
+    :root {
+      --apple-bg: #ffffff;
+      --apple-text: #1d1d1f;
+      --apple-highlight: #0071e3;
+      --apple-border: #d2d2d7;
+      --apple-subtle: #f5f5f7;
+      --apple-card: #ffffff;
+      --apple-card-shadow: rgba(0, 0, 0, 0.08);
+      --toggle-bg-off: #e4e4e4;
+      --toggle-bg-on: var(--apple-highlight);
+      --toggle-border: rgba(0, 0, 0, 0.1);
+      --section-radius: 18px;
+      --input-radius: 10px;
+      --standard-transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     }
     
-    .container {
-      max-width: 800px;
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --apple-bg: #000000;
+        --apple-text: #f5f5f7;
+        --apple-highlight: #0a84ff;
+        --apple-border: #434343;
+        --apple-subtle: #1d1d1f;
+        --apple-card: #1d1d1f;
+        --apple-card-shadow: rgba(0, 0, 0, 0.5);
+        --toggle-bg-off: #38383a;
+      }
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    body {
+      background-color: var(--apple-bg);
+      color: var(--apple-text);
+      padding: 40px;
+      max-width: 960px;
       margin: 0 auto;
-      background-color: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      padding: 20px;
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     
     h1 {
-      color: #4285F4;
-      margin-top: 0;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #eee;
+      font-size: 34px;
+      font-weight: 700;
+      margin-bottom: 30px;
+      text-align: left;
+      color: var(--apple-text);
+      letter-spacing: -0.5px;
     }
     
     h2 {
-      color: #555;
-      margin-top: 20px;
-      font-size: 18px;
+      font-size: 22px;
+      font-weight: 600;
+      margin: 30px 0 20px;
+      color: var(--apple-text);
+      letter-spacing: -0.3px;
     }
     
-    .option-section {
+    .settings-section {
+      background-color: var(--apple-card);
+      border-radius: var(--section-radius);
+      padding: 24px;
       margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid #eee;
+      box-shadow: 0 4px 16px var(--apple-card-shadow);
+      transition: var(--standard-transition);
+      animation: sectionFadeIn 0.6s ease-out forwards;
+      opacity: 0;
+      transform: translateY(8px);
     }
     
-    .option-row {
+    @keyframes sectionFadeIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .settings-section:nth-child(2) { animation-delay: 0.1s; }
+    .settings-section:nth-child(3) { animation-delay: 0.2s; }
+    
+    .setting-group {
+      margin-bottom: 30px;
+    }
+    
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--apple-border);
+    }
+    
+    .setting-row:last-child {
+      border-bottom: none;
+    }
+    
+    .setting-label {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--apple-text);
+    }
+    
+    .setting-description {
+      font-size: 14px;
+      color: #86868b;
+      margin-top: 4px;
+      max-width: 70%;
+    }
+    
+    /* 토글 스위치 스타일 */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 52px;
+      height: 32px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--toggle-bg-off);
+      border-radius: 34px;
+      transition: var(--standard-transition);
+      box-shadow: inset 0 0 0 1px var(--toggle-border);
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 28px;
+      width: 28px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      border-radius: 50%;
+      transition: var(--standard-transition);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: var(--toggle-bg-on);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+    
+    /* 선택 드롭다운 스타일 */
+    .select-wrapper {
+      position: relative;
+    }
+    
+    select {
+      appearance: none;
+      background-color: var(--apple-subtle);
+      border: none;
+      padding: 10px 32px 10px 16px;
+      font-size: 14px;
+      border-radius: var(--input-radius);
+      color: var(--apple-text);
+      cursor: pointer;
+      min-width: 160px;
+      transition: var(--standard-transition);
+    }
+    
+    select:hover {
+      background-color: var(--apple-border);
+    }
+    
+    .select-wrapper:after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid var(--apple-text);
+      pointer-events: none;
+    }
+    
+    /* 입력 필드 스타일 */
+    input[type="text"],
+    input[type="number"] {
+      background-color: var(--apple-subtle);
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: var(--input-radius);
+      color: var(--apple-text);
+      transition: var(--standard-transition);
+      width: 160px;
+    }
+    
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 125, 250, 0.3);
+    }
+    
+    /* 색상 선택기 */
+    .color-picker-wrapper {
       display: flex;
       align-items: center;
-      margin-bottom: 15px;
     }
     
-    .option-label {
-      flex: 0 0 200px;
-      font-weight: 500;
+    .color-preview {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      margin-right: 10px;
+      box-shadow: 0 0 0 1px var(--apple-border);
     }
     
-    .option-control {
+    input[type="color"] {
+      opacity: 0;
+      position: absolute;
+      height: 1px;
+      width: 1px;
+    }
+    
+    .color-input {
       flex: 1;
     }
     
-    select, input[type="range"], input[type="checkbox"], input[type="text"], input[type="number"] {
-      padding: 8px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-      font-size: 14px;
-      width: 100%;
-      max-width: 300px;
+    /* 버튼 스타일 */
+    .button-group {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 30px;
     }
     
-    input[type="file"] {
-      margin-top: 10px;
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: var(--input-radius);
+      cursor: pointer;
+      transition: var(--standard-transition);
+    }
+    
+    .button-primary {
+      background-color: var(--apple-highlight);
+      color: white;
+    }
+    
+    .button-primary:hover {
+      background-color: #0060c7;
+    }
+    
+    .button-secondary {
+      background-color: var(--apple-subtle);
+      color: var(--apple-text);
+    }
+    
+    .button-secondary:hover {
+      background-color: var(--apple-border);
+    }
+    
+    /* 미리보기 섹션 */
+    .preview-section {
+      margin-top: 40px;
     }
     
     .preview-container {
-      margin-top: 20px;
-      border: 1px solid #ddd;
+      background-color: var(--apple-card);
+      border-radius: var(--section-radius);
       padding: 20px;
-      border-radius: 4px;
-      background-color: #f9f9f9;
-      position: relative;
+      box-shadow: 0 4px 16px var(--apple-card-shadow);
       height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
       overflow: hidden;
     }
     
-    .preview-title {
-      font-weight: 500;
-      margin-bottom: 10px;
-    }
-    
-    .bookmark-bar-preview {
-      height: 40px;
+    .preview-bookmark-bar {
+      width: 100%;
+      height: 44px;
       display: flex;
       align-items: center;
       padding: 0 10px;
-      border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s;
+      border-radius: 8px;
     }
     
-    .bookmark-item-preview {
+    .preview-bookmark-item {
       display: flex;
       align-items: center;
-      padding: 5px 10px;
-      border-radius: 4px;
-      margin-right: 10px;
-      cursor: pointer;
-      transition: background-color 0.2s;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin-right: 8px;
     }
     
-    .bookmark-item-preview:hover {
-      background-color: rgba(0, 0, 0, 0.05);
-    }
-    
-    .bookmark-icon-preview {
+    .preview-bookmark-icon {
       width: 16px;
       height: 16px;
+      background-color: #0077ed;
+      border-radius: 4px;
       margin-right: 8px;
-      background-color: #5f6368;
-      border-radius: 3px;
     }
     
-    .bookmark-text-preview {
+    .preview-bookmark-text {
       font-size: 13px;
       white-space: nowrap;
     }
     
-    .color-picker-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    /* 하단 저장 버튼 부분 */
+    .save-footer {
+      position: sticky;
+      bottom: 0;
+      background-color: var(--apple-bg);
+      padding: 20px 0;
+      margin-top: 40px;
+      box-shadow: 0 -10px 20px var(--apple-bg);
     }
     
-    .color-picker {
-      width: 40px;
-      height: 40px;
-      padding: 0;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      cursor: pointer;
+    /* 반응형 디자인 */
+    @media (max-width: 768px) {
+      body {
+        padding: 20px;
+      }
+      
+      .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .setting-description {
+        max-width: 100%;
+        margin-bottom: 12px;
+      }
+      
+      .setting-row > div:last-child {
+        align-self: flex-end;
+      }
+      
+      h1 {
+        font-size: 28px;
+      }
+      
+      h2 {
+        font-size: 20px;
+      }
     }
     
-    .color-value {
-      flex: 1;
-      max-width: 100px;
-      padding: 8px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-      font-size: 14px;
-    }
-    
-    .color-preset {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      margin: 0 5px;
-      cursor: pointer;
-      border: 1px solid #ddd;
-      transition: transform 0.2s;
-    }
-    
-    .color-preset:hover {
-      transform: scale(1.1);
-    }
-    
-    .icon-size-options {
-      display: flex;
-      gap: 15px;
-    }
-    
-    .icon-size-option {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      cursor: pointer;
-    }
-    
-    .icon-size-preview {
-      margin-bottom: 5px;
-      background-color: #5f6368;
-      border-radius: 3px;
-    }
-    
-    .icon-size-small {
-      width: 12px;
-      height: 12px;
-    }
-    
-    .icon-size-medium {
-      width: 16px;
-      height: 16px;
-    }
-    
-    .icon-size-large {
-      width: 20px;
-      height: 20px;
-    }
-    
-    .icon-size-label {
-      font-size: 12px;
-    }
-    
-    .button-row {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 20px;
-      gap: 10px;
-    }
-    
-    button {
-      padding: 8px 20px;
-      border-radius: 4px;
-      border: none;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    
-    .save-button {
-      background-color: #4285F4;
-      color: white;
-    }
-    
-    .save-button:hover {
-      background-color: #3367d6;
-    }
-    
-    .reset-button {
-      background-color: #f5f5f5;
-      color: #333;
-      border: 1px solid #ddd;
-    }
-    
-    .reset-button:hover {
-      background-color: #e0e0e0;
-    }
-    
-    .notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: #4285f4;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 4px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      transition: opacity 0.3s;
-      z-index: 1000;
-      animation: fade-in 0.3s;
-      opacity: 0;
-    }
-    
-    .notification.show {
-      opacity: 1;
-    }
-    
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .add-bookmark-button-preview {
-      position: absolute;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: #4285F4;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: bold;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-      cursor: pointer;
-      bottom: 10px;
-      right: 10px;
-    }
-    
-    .image-preview {
-      max-width: 100px;
-      max-height: 100px;
+    .position-selector {
       margin-top: 10px;
-      border: 1px solid #ddd;
+    }
+    
+    .position-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      gap: 5px;
+      width: 150px;
+      height: 150px;
+    }
+    
+    .position-button {
+      background-color: var(--apple-subtle);
+      border: 1px solid var(--apple-border);
       border-radius: 4px;
-      display: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
     
-    .chrome-link {
-      margin-top: 10px;
-      display: block;
-      color: #4285F4;
-      text-decoration: none;
+    .position-button:hover {
+      background-color: var(--apple-border);
     }
     
-    .chrome-link:hover {
-      text-decoration: underline;
+    .position-button.active {
+      background-color: var(--apple-highlight);
+      border-color: var(--apple-highlight);
     }
     
-    .transparent {
-      background-color: transparent !important;
-      box-shadow: none !important;
-    }
-    
-    .semi-transparent {
-      background-color: rgba(241, 243, 244, 0.7) !important;
-    }
-    
-    .hide-text .bookmark-text-preview {
-      display: none;
-    }
-    
-    .icon-small .bookmark-icon-preview {
-      width: 12px;
-      height: 12px;
-    }
-    
-    .icon-medium .bookmark-icon-preview {
-      width: 16px;
-      height: 16px;
-    }
-    
-    .icon-large .bookmark-icon-preview {
-      width: 20px;
-      height: 20px;
-    }
-    
-    .text-small .bookmark-text-preview {
-      font-size: 11px;
-    }
-    
-    .text-medium .bookmark-text-preview {
-      font-size: 13px;
-    }
-    
-    .text-large .bookmark-text-preview {
-      font-size: 15px;
+    .position-center {
+      background-color: var(--apple-card);
+      border: 1px solid var(--apple-border);
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1 id="options-title">BookStaxx 설정</h1>
+  <h1>BookStaxx 설정</h1>
+  
+  <section class="settings-section">
+    <h2>북마크 바튼 설정</h2>
     
-    <div id="bookmark-bar-section" class="option-section">
-      <h2 id="bookmark-bar-title">북마크 바 설정</h2>
+    <div class="setting-group">
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">북마크 버튼 표시</div>
+          <div class="setting-description">북마크 바를 열고 닫는 버튼을 표시합니다</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="bookmarkButtonShow">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       
-      <div class="option-row">
-        <div class="option-label" id="position-label">북마크 바 위치</div>
-        <div class="option-control">
-          <select id="position">
-            <option value="top" id="position-top">상단</option>
-            <option value="bottom" id="position-bottom">하단</option>
-            <option value="left" id="position-left">좌측</option>
-            <option value="right" id="position-right">우측</option>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">버튼 위치</div>
+          <div class="setting-description">북마크 버튼이 표시될 위치를 선택합니다</div>
+        </div>
+        <div class="select-wrapper">
+          <select id="bookmarkButtonPosition">
+            <option value="topRight">오른쪽 상단</option>
+            <option value="topLeft">왼쪽 상단</option>
+            <option value="bottomRight">오른쪽 하단</option>
+            <option value="bottomLeft">왼쪽 하단</option>
           </select>
         </div>
       </div>
       
-      <div class="option-row">
-        <div class="option-label" id="bar-style-label">스타일 모드</div>
-        <div class="option-control">
-          <select id="bar-style">
-            <option value="normal" id="style-normal">일반</option>
-            <option value="semi-transparent" id="style-semi-transparent">반투명</option>
-            <option value="transparent" id="style-transparent">투명</option>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">버튼 크기</div>
+          <div class="setting-description">북마크 버튼의 크기를 조정합니다</div>
+        </div>
+        <input type="text" id="bookmarkButtonSize" placeholder="예: 40px">
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">사용자 지정 크기</div>
+          <div class="setting-description">북마크 버튼의 크기를 세밀하게 조정합니다</div>
+        </div>
+        <input type="number" id="bookmarkButtonCustomSize" placeholder="예: 45">
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">버튼 색상</div>
+          <div class="setting-description">북마크 버튼의 배경 색상을 설정합니다</div>
+        </div>
+        <div class="color-picker-wrapper">
+          <div class="color-preview" id="bookmarkButtonColorPreview"></div>
+          <input type="text" class="color-input" id="bookmarkButtonColor" placeholder="#0077ED">
+          <input type="color" id="bookmarkButtonColorPicker">
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">텍스트 색상</div>
+          <div class="setting-description">버튼 내 텍스트 색상을 설정합니다</div>
+        </div>
+        <div class="color-picker-wrapper">
+          <div class="color-preview" id="bookmarkButtonTextColorPreview"></div>
+          <input type="text" class="color-input" id="bookmarkButtonTextColor" placeholder="#FFFFFF">
+          <input type="color" id="bookmarkButtonTextColorPicker">
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">커스텀 이미지</div>
+          <div class="setting-description">버튼에 커스텀 이미지를 사용합니다 (URL 입력)</div>
+        </div>
+        <input type="text" id="bookmarkButtonCustomImage" placeholder="이미지 URL">
+      </div>
+    </div>
+  </section>
+  
+  <section class="settings-section">
+    <h2>북마크 바 설정</h2>
+    
+    <div class="setting-group">
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">북마크 바 표시</div>
+          <div class="setting-description">북마크가 표시되는 바를 화면에 표시합니다</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="bookmarkBarShow">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">북마크 바 위치</div>
+          <div class="setting-description">북마크 바가 표시될 위치를 선택합니다</div>
+        </div>
+        <div class="select-wrapper">
+          <select id="bookmarkBarPosition">
+            <option value="top">상단</option>
+            <option value="right">오른쪽</option>
+            <option value="bottom">하단</option>
+            <option value="left">왼쪽</option>
+            <option value="topRight">오른쪽 상단</option>
+            <option value="topLeft">왼쪽 상단</option>
+            <option value="bottomRight">오른쪽 하단</option>
+            <option value="bottomLeft">왼쪽 하단</option>
           </select>
         </div>
       </div>
       
-      <div class="option-row">
-        <div class="option-label" id="opacity-label">투명도</div>
-        <div class="option-control">
-          <input type="range" id="opacity" min="30" max="100" step="5" value="100">
-          <span id="opacity-value">100%</span>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">위치 시각적 선택</div>
+          <div class="setting-description">북마크 바 위치를 시각적으로 선택합니다</div>
         </div>
-      </div>
-      
-      <div class="option-row">
-        <div class="option-label" id="background-color-label">배경색</div>
-        <div class="option-control">
-          <div class="color-picker-container">
-            <input type="color" id="background-color" class="color-picker">
-            <input type="text" id="background-color-value" class="color-value" value="#f1f3f4">
-            <div class="color-presets">
-              <div class="color-preset" style="background-color: #f1f3f4;" data-color="#f1f3f4"></div>
-              <div class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></div>
-              <div class="color-preset" style="background-color: #e8eaed;" data-color="#e8eaed"></div>
-              <div class="color-preset" style="background-color: #f8f9fa;" data-color="#f8f9fa"></div>
-              <div class="color-preset" style="background-color: #202124;" data-color="#202124"></div>
-            </div>
+        <div class="position-selector">
+          <div class="position-grid">
+            <button class="position-button" data-position="topLeft"></button>
+            <button class="position-button" data-position="top"></button>
+            <button class="position-button" data-position="topRight"></button>
+            <button class="position-button" data-position="left"></button>
+            <div class="position-center"></div>
+            <button class="position-button" data-position="right"></button>
+            <button class="position-button" data-position="bottomLeft"></button>
+            <button class="position-button" data-position="bottom"></button>
+            <button class="position-button" data-position="bottomRight"></button>
           </div>
         </div>
       </div>
       
-      <div class="option-row">
-        <div class="option-label" id="text-color-label">글자색</div>
-        <div class="option-control">
-          <div class="color-picker-container">
-            <input type="color" id="text-color" class="color-picker">
-            <input type="text" id="text-color-value" class="color-value" value="#333333">
-            <div class="color-presets">
-              <div class="color-preset" style="background-color: #333333;" data-color="#333333"></div>
-              <div class="color-preset" style="background-color: #000000;" data-color="#000000"></div>
-              <div class="color-preset" style="background-color: #757575;" data-color="#757575"></div>
-              <div class="color-preset" style="background-color: #4285F4;" data-color="#4285F4"></div>
-              <div class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></div>
-            </div>
-          </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">바 높이</div>
+          <div class="setting-description">북마크 바의 높이를 조정합니다</div>
+        </div>
+        <input type="text" id="bookmarkBarHeight" placeholder="예: 40px">
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">배경 색상</div>
+          <div class="setting-description">북마크 바의 배경 색상을 설정합니다</div>
+        </div>
+        <div class="color-picker-wrapper">
+          <div class="color-preview" id="bookmarkBarBackgroundColorPreview"></div>
+          <input type="text" class="color-input" id="bookmarkBarBackgroundColor" placeholder="#FFFFFF">
+          <input type="color" id="bookmarkBarBackgroundColorPicker">
         </div>
       </div>
       
-      <div class="option-row">
-        <div class="option-label" id="icon-size-label">아이콘 크기</div>
-        <div class="option-control">
-          <select id="icon-size">
-            <option value="small" id="icon-size-small">작게</option>
-            <option value="medium" id="icon-size-medium">중간</option>
-            <option value="large" id="icon-size-large">크게</option>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">텍스트 색상</div>
+          <div class="setting-description">북마크 항목의 텍스트 색상을 설정합니다</div>
+        </div>
+        <div class="color-picker-wrapper">
+          <div class="color-preview" id="bookmarkBarTextColorPreview"></div>
+          <input type="text" class="color-input" id="bookmarkBarTextColor" placeholder="#000000">
+          <input type="color" id="bookmarkBarTextColorPicker">
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">북마크 바 표시 애니메이션</div>
+          <div class="setting-description">북마크 바가 처음 표시될 때의 애니메이션 효과를 선택합니다</div>
+        </div>
+        <div class="select-wrapper">
+          <select id="bookmarkBarAnimation">
+            <option value="none">애니메이션 없음 (즉시 표시)</option>
+            <option value="fade">페이드 인 효과</option>
+            <option value="slide">슬라이드 효과</option>
+            <option value="bounce">바운스 효과</option>
           </select>
         </div>
       </div>
       
-      <div class="option-row">
-        <div class="option-label" id="show-text-label">텍스트 표시</div>
-        <div class="option-control">
-          <input type="checkbox" id="show-text" checked>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">북마크 바 모양</div>
+          <div class="setting-description">북마크 바의 모양과 레이아웃을 선택합니다</div>
         </div>
-      </div>
-      
-      <div class="option-row">
-        <div class="option-label" id="text-size-label">텍스트 크기</div>
-        <div class="option-control">
-          <select id="text-size">
-            <option value="small" id="text-size-small">작게</option>
-            <option value="medium" id="text-size-medium">중간</option>
-            <option value="large" id="text-size-large">크게</option>
+        <div class="select-wrapper">
+          <select id="bookmarkBarShape">
+            <option value="standard">기본 창 형태</option>
+            <option value="circle">원형 레이아웃</option>
+            <option value="widget">위젯 형태 (3x3 그리드)</option>
           </select>
         </div>
       </div>
       
-      <div class="option-row">
-        <div class="option-label" id="max-text-length-label">최대 텍스트 길이</div>
-        <div class="option-control">
-          <input type="range" id="max-text-length" min="3" max="30" step="1" value="15">
-          <span id="max-text-length-value">15</span>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">북마크 텍스트 표시</div>
+          <div class="setting-description">북마크 항목에 텍스트(이름)를 표시할지 여부를 설정합니다</div>
         </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="showBookmarkText" checked>
+          <span class="toggle-slider"></span>
+        </label>
       </div>
       
-      <div class="option-row">
-        <div class="option-label" id="hide-chrome-label">Chrome 북마크 바 숨기기</div>
-        <div class="option-control">
-          <input type="checkbox" id="hide-chrome">
-          <a href="chrome://settings/appearance" target="_blank" class="chrome-link" id="chrome-settings-link">Chrome 설정에서 북마크 바 관리하기</a>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">텍스트 길이 제한</div>
+          <div class="setting-description">북마크 이름의 최대 표시 길이를 설정합니다 (0: 제한 없음)</div>
+        </div>
+        <input type="number" id="bookmarkTextMaxLength" placeholder="예: 10" min="0" max="50">
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">크롬 UI 스타일 사용</div>
+          <div class="setting-description">북마크바를 크롬 브라우저의 기본 북마크바와 유사하게 표시합니다</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="useChromeStyle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">크롬 북마크 불러오기</div>
+          <div class="setting-description">크롬 기본 북마크를 BookStaxx 북마크바로 불러옵니다</div>
+        </div>
+        <button class="button-secondary" id="importChromeBookmarks">북마크 불러오기</button>
+      </div>
+      
+      <!-- 북마크바 유지 설정 -->
+      <div class="setting-row">
+        <div class="setting-label">북마크바 유지 설정</div>
+        <div class="setting-description">페이지 이동 시 북마크바를 유지합니다. 북마크바가 사라지지 않고 계속 표시됩니다.</div>
+        <div class="setting-control">
+          <label class="switch">
+            <input type="checkbox" id="persistBookmarkBar" checked>
+            <span class="slider round"></span>
+          </label>
         </div>
       </div>
     </div>
-    
-    <div id="bookmark-button-section" class="option-section">
-      <h2 id="bookmark-button-title">북마크 추가 버튼 설정</h2>
-      
-      <div class="option-row">
-        <div class="option-label" id="show-button-label">버튼 표시</div>
-        <div class="option-control">
-          <input type="checkbox" id="show-button" checked>
+  </section>
+  
+  <div class="preview-section">
+    <h2>미리보기</h2>
+    <div class="preview-container" id="previewContainer">
+      <div class="preview-bookmark-bar" id="previewBookmarkBar">
+        <div class="preview-bookmark-item">
+          <div class="preview-bookmark-icon"></div>
+          <div class="preview-bookmark-text">Google</div>
+        </div>
+        <div class="preview-bookmark-item">
+          <div class="preview-bookmark-icon"></div>
+          <div class="preview-bookmark-text">YouTube</div>
+        </div>
+        <div class="preview-bookmark-item">
+          <div class="preview-bookmark-icon"></div>
+          <div class="preview-bookmark-text">GitHub</div>
         </div>
       </div>
-      
-      <div id="button-settings-section">
-        <div class="option-row">
-          <div class="option-label" id="button-position-label">버튼 위치</div>
-          <div class="option-control">
-            <select id="button-position">
-              <option value="topLeft" id="button-position-top-left">좌측 상단</option>
-              <option value="topRight" id="button-position-top-right">우측 상단</option>
-              <option value="bottomLeft" id="button-position-bottom-left">좌측 하단</option>
-              <option value="bottomRight" id="button-position-bottom-right">우측 하단</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="option-row">
-          <div class="option-label" id="button-size-label">버튼 크기</div>
-          <div class="option-control">
-            <input type="range" id="button-size" min="20" max="60" step="5" value="40">
-            <span id="button-size-value">40px</span>
-          </div>
-        </div>
-        
-        <div class="option-row">
-          <div class="option-label" id="button-color-label">버튼 색상</div>
-          <div class="option-control">
-            <div class="color-picker-container">
-              <input type="color" id="button-color" class="color-picker" value="#4285F4">
-              <input type="text" id="button-color-value" class="color-value" value="#4285F4">
-            </div>
-          </div>
-        </div>
-        
-        <div class="option-row">
-          <div class="option-label" id="button-text-color-label">버튼 텍스트 색상</div>
-          <div class="option-control">
-            <div class="color-picker-container">
-              <input type="color" id="button-text-color" class="color-picker" value="#FFFFFF">
-              <input type="text" id="button-text-color-value" class="color-value" value="#FFFFFF">
-            </div>
-          </div>
-        </div>
-        
-        <div class="option-row">
-          <div class="option-label" id="button-image-label">버튼 이미지</div>
-          <div class="option-control">
-            <input type="file" id="button-image" accept="image/*">
-            <img id="button-image-preview" class="image-preview">
-            <button id="reset-image-button" class="reset-button" style="display: none; margin-top: 10px;">이미지 초기화</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div id="preview-section" class="option-section">
-      <h2 id="preview-title">미리보기</h2>
-      
-      <div class="preview-container">
-        <div class="bookmark-bar-preview" id="bookmark-preview">
-          <div class="bookmark-item-preview">
-            <div class="bookmark-icon-preview"></div>
-            <div class="bookmark-text-preview">Google</div>
-          </div>
-          <div class="bookmark-item-preview">
-            <div class="bookmark-icon-preview"></div>
-            <div class="bookmark-text-preview">YouTube</div>
-          </div>
-          <div class="bookmark-item-preview">
-            <div class="bookmark-icon-preview"></div>
-            <div class="bookmark-text-preview">Gmail</div>
-          </div>
-        </div>
-        
-        <div class="add-bookmark-button-preview" id="button-preview">+</div>
-      </div>
-    </div>
-    
-    <div class="button-row">
-      <button id="reset-button" class="reset-button">초기화</button>
-      <button id="save-button" class="save-button">저장</button>
     </div>
   </div>
   
-  <div id="notification" class="notification"></div>
+  <div class="save-footer">
+    <div class="button-group">
+      <button class="button-secondary" id="resetButton">기본값으로 재설정</button>
+      <button class="button-primary" id="saveButton">저장</button>
+    </div>
+  </div>
   
   <script src="options.js"></script>
 </body>

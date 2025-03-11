@@ -1,61 +1,175 @@
-﻿// 전역 BookStaxx 객체가 이미 존재하는지 확인 (중복 실행 방지)
-if (window.BookStaxx) {
-  console.log('BookStaxx가 이미 초기화되었습니다. 중복 실행을 건너뜁니다.');
-} else {
-  // BookStaxx 전역 객체 생성
-  window.BookStaxx = {};
-
-  // 스크립트 실행
+﻿// BookStaxx 컨텐츠 스크립트
+if (!window.BookStaxx) {
+  // 전역 객체 초기화
+  window.BookStaxx = {
+    initialized: false,
+    bookmarkBarCreated: false, // 북마크바 생성 여부 추적
+    persistBookmarkBar: true   // 북마크바 유지 설정
+  };
+  
+  // 전역 변수 선언
+  let isLoadingBookmarks = false;
+  let isInitialized = false; // 초기화 완료 플래그 전역 변수로 선언
+  
   (function() {
-    // i18n 메시지 가져오기 함수
-    function getMessage(key, substitutions) {
-      return chrome.i18n.getMessage(key, substitutions) || key;
-    }
-
-    // 기본 설정값 정의 (전역 변수로 선언)
-    var defaultSettings = {
-      bookmarkButton: {
-        show: true,
-        position: 'bottomRight',
-        size: '40px',
-        backgroundColor: '#4285F4',
-        textColor: '#FFFFFF',
-        customImage: null
-      },
+    // 전역 네임스페이스 초기화
+    window.BookStaxx = window.BookStaxx || {
+      persistBookmarkBar: true,
+      bookmarkBarCreated: false,
+      offlineMode: false
+    };
+    
+    // 기본 설정 정의
+    const defaultSettings = {
       bookmarkBar: {
+        show: true,
         position: 'top',
         backgroundColor: '#f1f3f4',
         textColor: '#333333',
         opacity: 100,
-        iconSize: 'medium',
-        textSize: 'medium',
-        maxTextLength: 15,
         showText: true,
-        style: 'normal',
-        hideChrome: false,
-        adjustBodyPadding: true,
-        cacheIcons: true,
-        persistAcrossNavigation: true
-      }
+        textMaxLength: 0,
+        iconSize: 'medium',
+        useChromeStyle: true
+      },
+      bookmarkButton: {
+        show: true,
+        position: 'topRight',
+        size: 'medium',
+        color: '#0077ED',
+        textColor: '#FFFFFF'
+      },
+      persistBookmarkBar: true
     };
-
-    // 사용자 설정을 저장할 변수
-    var userSettings = {};
-
-    // 전역 설정 객체
-    var settings = {};
+    
+    // 설정 객체 초기화
+    let settings = {};
+    
+    // 사전 초기화 검사
+    function preInit() {
+      console.log('BookStaxx 사전 초기화 검사 시작');
+      
+      // 현재 URL 확인
+      const currentUrl = window.location.href;
+      
+      // 내부 페이지 확인 (매니페스트의 exclude_matches로 처리할 수 없는 경우)
+      if (currentUrl.startsWith('chrome://') || 
+          currentUrl.startsWith('chrome-extension://') || 
+          currentUrl.startsWith('chrome-search://') ||
+          currentUrl.startsWith('devtools://') ||
+          currentUrl.startsWith('edge://') ||
+          currentUrl.startsWith('about:') ||
+          currentUrl.startsWith('view-source:') ||
+          currentUrl.startsWith('brave://') ||
+          currentUrl.includes('chrome.google.com/webstore') ||
+          currentUrl.includes('addons.mozilla.org')) {
+        console.log('내부 페이지에서는 북마크 바를 초기화하지 않습니다:', currentUrl);
+        return false;
+      }
+      
+      // 이미 초기화된 경우 중복 초기화 방지
+      if (window.BookStaxxInitialized) {
+        console.log('BookStaxx가 이미 초기화되었습니다');
+        
+        // 북마크 바가 존재하는지 확인
+        const bookmarkBar = document.getElementById('bookmark-bar');
+        if (bookmarkBar) {
+          console.log('북마크 바가 이미 존재합니다. 업데이트만 수행합니다.');
+          return 'update-only';
+        }
+        
+        console.log('BookStaxx가 이미 초기화되었지만 북마크 바가 없습니다. 새로 생성합니다.');
+      }
+      
+      // DOM이 준비되었는지 확인
+      if (document.readyState === 'loading') {
+        console.log('DOM이 아직 준비되지 않았습니다. 이벤트 리스너를 추가합니다.');
+        
+        // DOMContentLoaded 이벤트 리스너 추가
+        document.addEventListener('DOMContentLoaded', function() {
+          console.log('DOMContentLoaded 이벤트 발생');
+          if (!window.BookStaxxInitialized) {
+            initBookmarkBar();
+          }
+        });
+        
+        // load 이벤트 리스너 추가
+        window.addEventListener('load', function() {
+          console.log('load 이벤트 발생');
+          if (!window.BookStaxxInitialized) {
+            initBookmarkBar();
+          }
+        });
+        
+        return false;
+      }
+      
+      // 초기화 진행
+      return true;
+    }
+    
+    // 사전 초기화 검사 실행
+    if (!preInit()) {
+      return; // 초기화 조건이 맞지 않으면 종료
+    }
+    
+    // i18n 메시지 가져오기 함수
+    function getMessage(key, substitutions) {
+      // 기본 메시지 정의
+      const defaultMessages = {
+        'edit': '편집',
+        'delete': '삭제',
+        'deleteConfirmation': '북마크를 삭제하시겠습니까?',
+        'editBookmarkTitle': '북마크 제목 편집:',
+        'editBookmarkUrl': '북마크 URL 편집:',
+        'editBookmarkError': '북마크 편집 중 오류가 발생했습니다.',
+        'deleteBookmarkError': '북마크 삭제 중 오류가 발생했습니다.',
+        'offlineEditNotSupported': '오프라인 모드에서는 북마크 편집이 지원되지 않습니다.',
+        'offlineDeleteNotSupported': '오프라인 모드에서는 북마크 삭제가 지원되지 않습니다.',
+        'bookmarkAdded': '북마크가 추가되었습니다.',
+        'bookmarkAddError': '북마크 추가 중 오류가 발생했습니다.',
+        'bookmarkBarInitialized': '북마크 바가 초기화되었습니다.',
+        'bookmarkBarInitError': '북마크 바 초기화 중 오류가 발생했습니다.',
+        'loadingBookmarks': '북마크를 불러오는 중...',
+        'noBookmarks': '북마크가 없습니다.',
+        'contextInvalidated': '확장 프로그램 컨텍스트가 무효화되었습니다.',
+        'tryAgainLater': '나중에 다시 시도해 주세요.',
+        'offlineMode': '오프라인 모드로 전환되었습니다.',
+        'connectionRestored': '연결이 복원되었습니다.'
+      };
+      
+      try {
+        // chrome.i18n이 있는 경우 사용
+        if (chrome.i18n) {
+          try {
+            const message = chrome.i18n.getMessage(key, substitutions);
+            if (message) {
+              return message;
+            }
+          } catch (i18nError) {
+            console.warn(`i18n 메시지 가져오기 실패 (${key}):`, i18nError);
+            // i18n 오류 시 기본 메시지로 폴백
+          }
+        }
+        
+        // 기본 메시지 반환
+        if (defaultMessages[key]) {
+          return defaultMessages[key];
+        }
+        
+        // 기본 메시지도 없는 경우 키 자체 반환
+        return key;
+      } catch (error) {
+        console.error(`메시지 가져오기 중 오류 발생 (${key}):`, error);
+        return key; // 오류 발생 시 키 자체 반환
+      }
+    }
 
     // 북마크 버튼 요소
     var bookmarkButton = null;
 
     // 북마크 바 요소
     let bookmarkBar = null;
-
-    // 초기화 완료 플래그
-    let isInitialized = false;
-
-    // 북마크바 로딩 상태
-    let isLoadingBookmarks = false;
 
     // 북마크바 로딩 상태
     let isBookmarkBarLoading = false;
@@ -155,20 +269,48 @@ if (window.BookStaxx) {
     function checkBackgroundConnection() {
       return new Promise((resolve, reject) => {
         try {
-          chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+          // 핑 메시지 전송
+          chrome.runtime.sendMessage({ action: 'ping' }, response => {
+            // 응답 확인
             if (chrome.runtime.lastError) {
-              console.warn('백그라운드 연결 실패:', chrome.runtime.lastError.message);
-              reject(chrome.runtime.lastError);
-            } else if (response && response.pong) {
-              console.log('백그라운드 연결 성공');
+              const errorMessage = chrome.runtime.lastError.message || '';
+              console.error('백그라운드 연결 오류:', errorMessage);
+              
+              // Extension context invalidated 오류 처리
+              if (errorMessage.includes('Extension context invalidated')) {
+                console.log('확장 프로그램 컨텍스트가 무효화되었습니다. 오프라인 모드로 전환');
+                
+                // 오프라인 모드 플래그 설정
+                window.BookStaxx.offlineMode = true;
+                
+                // 특별한 오류 객체 생성
+                const contextError = new Error('Extension context invalidated');
+                contextError.isContextInvalidated = true;
+                reject(contextError);
+                return;
+              }
+              
+              reject(new Error('백그라운드 스크립트에 연결할 수 없습니다: ' + errorMessage));
+              return;
+            }
+            
+            // 오프라인 모드 해제
+            window.BookStaxx.offlineMode = false;
+            
+            if (response && response.success) {
+              console.log('백그라운드 스크립트 연결 성공');
               resolve(true);
             } else {
-              console.warn('백그라운드 응답 없음');
-              reject(new Error('백그라운드 응답 없음'));
+              console.error('백그라운드 스크립트 응답 오류:', response);
+              reject(new Error('백그라운드 스크립트 응답이 유효하지 않습니다'));
             }
           });
         } catch (error) {
-          console.error('백그라운드 연결 확인 중 오류:', error);
+          console.error('백그라운드 연결 확인 중 오류 발생:', error);
+          
+          // 오프라인 모드 플래그 설정
+          window.BookStaxx.offlineMode = true;
+          
           reject(error);
         }
       });
@@ -176,27 +318,34 @@ if (window.BookStaxx) {
 
     // 로딩 메시지 표시 함수
     function showLoadingMessage() {
-      // 이미 로딩 중이면 중복 표시 방지
-      if (isLoadingBookmarks) return;
-      
       isLoadingBookmarks = true;
+      // 로딩 메시지 숨김 (사용자가 로딩 메시지를 보는 것을 원하지 않음)
+      return;
       
-      const container = document.getElementById('bookmark-container');
-      if (!container) return;
+      // 아래 코드는 더 이상 실행되지 않음
+      /*
+      const bookmarkBar = document.getElementById('bookmark-bar');
+      if (!bookmarkBar) return;
       
-      // 기존 로딩 메시지 확인
-      let loadingMessage = container.querySelector('.bookmark-loading-message');
+      let loadingMessage = bookmarkBar.querySelector('.loading-message');
       
-      // 로딩 메시지가 없으면 생성
       if (!loadingMessage) {
         loadingMessage = document.createElement('div');
-        loadingMessage.className = 'bookmark-loading-message';
-        loadingMessage.textContent = getMessage('loadingBookmarks');
-        container.appendChild(loadingMessage);
+        loadingMessage.className = 'loading-message';
+        loadingMessage.textContent = '북마크 로드 중...';
+        
+        const container = bookmarkBar.querySelector('.bookmark-container');
+        if (container) {
+          container.innerHTML = '';
+          container.appendChild(loadingMessage);
+        } else {
+          const newContainer = document.createElement('div');
+          newContainer.className = 'bookmark-container';
+          newContainer.appendChild(loadingMessage);
+          bookmarkBar.appendChild(newContainer);
+        }
       }
-      
-      // 로딩 메시지 표시
-      loadingMessage.style.display = 'flex';
+      */
     }
 
     // 로딩 메시지 숨기기 함수
@@ -214,181 +363,685 @@ if (window.BookStaxx) {
 
     // 북마크 로드 함수
     function loadBookmarks() {
-      console.log('북마크 로드 시작');
-      
-      // 안전하게 설정 확인
-      chrome.storage.sync.get(defaultSettings, (data) => {
-        const bookmarkSettings = data || defaultSettings;
-        const bookmarkBarSettings = bookmarkSettings.bookmarkBar || {};
-        const useCachedIcons = bookmarkBarSettings.cacheIcons !== false;
+      try {
+        console.log('북마크 로드 시작');
         
-        // 캐시된 북마크가 있는지 확인
-        const cachedBookmarks = BookmarkCache.getBookmarks();
-        if (cachedBookmarks && useCachedIcons) {
-          console.log('캐시된 북마크 데이터 사용');
-          displayBookmarks(cachedBookmarks);
-          // 백그라운드에서 최신 데이터 로드 (UI 블록킹 없이)
-          setTimeout(() => {
-            fetchFreshBookmarks();
-          }, 1000);
-        } else {
-          // 캐시된 데이터가 없거나 캐싱이 비활성화된 경우 직접 로드
-          fetchFreshBookmarks();
+        // 이미 로딩 중인 경우 중복 로드 방지
+        if (isLoadingBookmarks) {
+          console.log('이미 북마크를 로드 중입니다');
+          return Promise.resolve([]); // 빈 배열 반환
+        }
+        
+        isLoadingBookmarks = true;
+        
+        // 로컬 스토리지에서 캐시된 북마크 데이터 확인
+        const cachedData = localStorage.getItem('bookmarkCache');
+        const cacheTimestamp = localStorage.getItem('bookmarkCacheTimestamp');
+        
+        if (cachedData && cacheTimestamp) {
+          try {
+            const cacheAge = (Date.now() - parseInt(cacheTimestamp)) / (1000 * 60); // 분 단위
+            console.log(`캐시된 북마크 데이터 사용 (캐시 기간: ${Math.floor(cacheAge)}분)`);
+            
+            const bookmarks = JSON.parse(cachedData);
+            displayBookmarks(bookmarks);
+            
+            // 캐시가 5분 이상 지난 경우에만 백그라운드에서 새로운 데이터 가져오기 시도
+            if (cacheAge > 5) {
+              console.log('캐시가 오래되어 백그라운드에서 최신 데이터를 가져옵니다');
+              fetchFreshBookmarks().catch(error => {
+                console.error('백그라운드에서 북마크 가져오기 실패:', error);
+                // 오류가 발생해도 캐시된 데이터를 이미 표시했으므로 사용자 경험에 영향 없음
+              });
+            }
+            
+            isLoadingBookmarks = false;
+            return Promise.resolve(bookmarks);
+          } catch (error) {
+            console.error('캐시된 북마크 데이터 파싱 오류:', error);
+            // 파싱 오류 시 계속 진행하여 백그라운드에서 가져오기 시도
+          }
+        }
+        
+        // 백그라운드에서 북마크 가져오기
+        return fetchFreshBookmarks()
+          .then(bookmarks => {
+            isLoadingBookmarks = false;
+            return bookmarks;
+          })
+          .catch(error => {
+            console.error('북마크 가져오기 실패:', error);
+            
+            // Extension context invalidated 오류 처리
+            if (error && error.message && error.message.includes('Extension context invalidated')) {
+              console.log('확장 프로그램 컨텍스트가 무효화되었습니다. 빈 북마크 목록 표시');
+              
+              // 빈 북마크 목록 표시
+              displayBookmarks([]);
+            }
+            
+            isLoadingBookmarks = false;
+            return []; // 오류 발생 시 빈 배열 반환
+          });
+      } catch (error) {
+        console.error('북마크 로드 함수 실행 중 오류:', error);
+        isLoadingBookmarks = false;
+        return Promise.resolve([]); // 오류 발생 시 빈 배열 반환
+      }
+    }
+
+    // 최신 북마크 데이터 가져오기 (Promise 반환)
+    function fetchFreshBookmarksPromise() {
+      return new Promise((resolve, reject) => {
+        try {
+          chrome.runtime.sendMessage({ action: 'getBookmarks' }, function(response) {
+            if (chrome.runtime.lastError) {
+              console.error('북마크 가져오기 오류:', chrome.runtime.lastError);
+              
+              // Extension context invalidated 오류 처리
+              if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('Extension context invalidated')) {
+                console.log('확장 프로그램 컨텍스트가 무효화되었습니다. 오프라인 모드로 전환');
+                window.BookStaxx.offlineMode = true;
+                reject(new Error('Extension context invalidated'));
+                return;
+              }
+              
+              checkBackgroundConnection();
+              hideLoadingMessage();
+              reject(chrome.runtime.lastError);
+              return;
+            }
+            
+            if (response && response.bookmarks) {
+              // 북마크 데이터 로컬 스토리지에 저장
+              try {
+                localStorage.setItem('bookmarkCache', JSON.stringify(response.bookmarks));
+                localStorage.setItem('bookmarkCacheTimestamp', Date.now().toString());
+                console.log('북마크 데이터가 캐시에 저장됨', response.bookmarks.length + '개');
+              } catch (storageError) {
+                console.error('북마크 데이터 로컬 스토리지 저장 실패:', storageError);
+              }
+              
+              // 북마크 데이터 chrome.storage에도 저장 (가능한 경우)
+              try {
+                chrome.storage.local.set({
+                  'cachedBookmarks': response.bookmarks,
+                  'bookmarkCacheTime': Date.now()
+                });
+              } catch (chromeStorageError) {
+                console.error('북마크 데이터 chrome.storage 저장 실패:', chromeStorageError);
+              }
+              
+              // 북마크 표시 (기존 북마크가 이미 표시되어 있을 수 있음)
+              displayBookmarks(response.bookmarks);
+              hideLoadingMessage();
+              resolve(response.bookmarks);
+            } else {
+              console.error('북마크 데이터를 가져올 수 없음');
+              hideLoadingMessage();
+              reject(new Error('북마크 데이터를 가져올 수 없음'));
+            }
+          });
+        } catch (error) {
+          console.error('북마크 가져오기 중 예외 발생:', error);
+          hideLoadingMessage();
+          reject(error);
         }
       });
     }
 
-    // 최신 북마크 데이터 가져오기
+    // 기존 fetchFreshBookmarks 함수 (하위 호환성 유지)
     function fetchFreshBookmarks() {
-      chrome.runtime.sendMessage({ action: 'getBookmarks' }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('북마크 데이터 요청 중 오류:', chrome.runtime.lastError.message);
-          return;
-        }
-        
-        if (response && response.bookmarks) {
-          // 캐시에 최신 데이터 저장
-          BookmarkCache.setBookmarks(response.bookmarks);
-          
-          // 현재 표시된 북마크와 다른 경우에만 UI 업데이트
-          const currentBookmarks = BookmarkCache.getBookmarks();
-          if (!currentBookmarks || JSON.stringify(currentBookmarks) !== JSON.stringify(response.bookmarks)) {
-            displayBookmarks(response.bookmarks);
-          }
-        }
+      return fetchFreshBookmarksPromise().catch(error => {
+        console.error('북마크 가져오기 실패:', error);
+        return Promise.reject(error); // 오류를 다시 전파
       });
     }
 
     // 북마크 표시 함수
     function displayBookmarks(bookmarks) {
-      console.log(`북마크 ${bookmarks.length}개 렌더링 시작`);
-      
-      const container = document.getElementById('bookmark-container');
-      if (!container) {
-        console.error('북마크 컨테이너를 찾을 수 없음');
-        return;
-      }
-      
-      // 컨테이너 내용 초기화
-      container.innerHTML = '';
-      
-      // 북마크가 없는 경우
-      if (!bookmarks || bookmarks.length === 0) {
-        const emptyMessage = document.createElement('div');
-        emptyMessage.className = 'empty-bookmark-message';
-        emptyMessage.textContent = getMessage('noBookmarks');
-        
-        // 북마크 추가 버튼 생성
-        const addButton = document.createElement('button');
-        addButton.className = 'add-bookmark-btn';
-        addButton.innerHTML = '+';
-        addButton.title = getMessage('addBookmark');
-        addButton.style.marginLeft = '10px';
-        addButton.addEventListener('click', addCurrentPageToBookmarks);
-        
-        // 메시지와 버튼을 포함할 컨테이너
-        const messageContainer = document.createElement('div');
-        messageContainer.style.display = 'flex';
-        messageContainer.style.alignItems = 'center';
-        messageContainer.style.justifyContent = 'center';
-        messageContainer.style.padding = '5px';
-        
-        messageContainer.appendChild(emptyMessage);
-        messageContainer.appendChild(addButton);
-        
-        container.appendChild(messageContainer);
-        return;
-      }
-      
-      // 북마크 바 설정 로드
-      chrome.storage.sync.get(defaultSettings, (settings) => {
-        // 북마크 바 스타일 체크
-        const bar = document.getElementById('bookmark-bar');
-        const isVertical = bar && (bar.classList.contains('left') || bar.classList.contains('right'));
-        
-        // 스타일 설정 가져오기
-        const showText = settings.bookmarkBar.showText !== false;
-        const textSize = settings.bookmarkBar.textSize || 'medium';
-        const maxTextLength = parseInt(settings.bookmarkBar.maxTextLength) || 15;
-        const iconSize = settings.bookmarkBar.iconSize || 'medium';
-        
-        // 스타일 클래스 적용
-        if (bar) {
-          bar.classList.remove('icon-small', 'icon-medium', 'icon-large');
-          bar.classList.add(`icon-${iconSize}`);
-          
-          bar.classList.remove('text-small', 'text-medium', 'text-large');
-          bar.classList.add(`text-${textSize}`);
-          
-          if (!showText) {
-            bar.classList.add('hide-text');
-          } else {
-            bar.classList.remove('hide-text');
-          }
-          
-          // 투명도 설정
-          const barStyle = settings.bookmarkBar.style || 'normal';
-          bar.classList.remove('transparent', 'semi-transparent');
-          if (barStyle === 'transparent') {
-            bar.style.backgroundColor = 'transparent';
-          } else if (barStyle === 'semi-transparent') {
-            bar.style.backgroundColor = 'rgba(241, 243, 244, 0.8)';
-            bar.style.backdropFilter = 'blur(5px)';
-          }
+      try {
+        if (isLoadingBookmarks) {
+          console.log('북마크 로딩 중입니다. 중복 로드 방지');
+          return;
         }
         
-        // 북마크 아이템 생성
-        bookmarks.forEach(bookmark => {
-          const bookmarkItem = document.createElement('a');
-          bookmarkItem.className = 'bookmark-item';
-          bookmarkItem.href = bookmark.url;
-          bookmarkItem.title = bookmark.title;
-          bookmarkItem.target = '_blank';
-          bookmarkItem.rel = 'noopener noreferrer';
-          
-          // 아이콘 컨테이너 추가
-          const iconElement = document.createElement('img');
-          iconElement.className = 'bookmark-icon';
-          iconElement.alt = '';
-          
-          // 기본 아이콘 설정
-          iconElement.src = 'images/default-favicon.png';
-          
-          // 텍스트 요소 추가
-          const textElement = document.createElement('span');
-          textElement.className = 'bookmark-text';
-          
-          // 텍스트 길이 제한
-          let displayTitle = bookmark.title;
-          if (maxTextLength > 0 && displayTitle.length > maxTextLength) {
-            displayTitle = displayTitle.substring(0, maxTextLength) + '...';
-          }
-          
-          textElement.textContent = displayTitle;
-          
-          // 아이콘과 텍스트를 북마크에 추가
-          bookmarkItem.appendChild(iconElement);
-          bookmarkItem.appendChild(textElement);
-          
-          // 컨텍스트 메뉴 이벤트 리스너 추가 (우클릭 메뉴)
-          bookmarkItem.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showBookmarkContextMenu(e, bookmark);
+        isLoadingBookmarks = true;
+        console.log('북마크 표시 시작');
+        
+        const container = document.getElementById('bookmark-container');
+        if (!container) {
+          console.error('북마크 컨테이너를 찾을 수 없습니다');
+          isLoadingBookmarks = false;
+          return;
+        }
+        
+        // 기존 북마크 제거
+        container.innerHTML = '';
+        
+        // 설정 가져오기
+        const showText = settings.bookmarkBar && settings.bookmarkBar.showText !== undefined ? 
+                        settings.bookmarkBar.showText : true;
+        const textMaxLength = settings.bookmarkBar && settings.bookmarkBar.textMaxLength !== undefined ? 
+                            settings.bookmarkBar.textMaxLength : 0;
+        
+        // 북마크 렌더링 함수
+        const renderAllItems = () => {
+          // 북마크 항목 생성
+          bookmarks.forEach(bookmark => {
+            const item = document.createElement('div');
+            item.className = 'bookmark-item';
+            item.setAttribute('data-url', bookmark.url);
+            item.setAttribute('data-id', bookmark.id);
+            item.setAttribute('draggable', 'true');
+            
+            // 아이콘 요소 생성
+            const icon = document.createElement('div');
+            icon.className = 'bookmark-icon';
+            item.appendChild(icon);
+            
+            // 텍스트 요소 생성
+            if (showText) {
+              const text = document.createElement('div');
+              text.className = 'bookmark-text';
+              
+              // 텍스트 길이 제한 적용
+              if (textMaxLength > 0 && bookmark.title.length > textMaxLength) {
+                text.textContent = bookmark.title.substring(0, textMaxLength) + '...';
+                text.setAttribute('title', bookmark.title); // 툴팁으로 전체 제목 표시
+              } else {
+                text.textContent = bookmark.title;
+              }
+              
+              item.appendChild(text);
+            }
+            
+            // 클릭 이벤트 추가
+            item.addEventListener('click', (event) => {
+              if (event.target.closest('.bookmark-context-menu')) {
+                return; // 컨텍스트 메뉴 클릭은 무시
+              }
+              
+              // 새 탭에서 열기 (Ctrl 키 또는 중간 버튼 클릭)
+              if (event.ctrlKey || event.metaKey || event.button === 1) {
+                chrome.runtime.sendMessage({
+                  action: 'openBookmark',
+                  url: bookmark.url,
+                  newTab: true
+                });
+              } else {
+                // 현재 탭에서 열기
+                chrome.runtime.sendMessage({
+                  action: 'openBookmark',
+                  url: bookmark.url,
+                  newTab: false
+                });
+              }
+            });
+            
+            // 컨텍스트 메뉴 이벤트 추가
+            item.addEventListener('contextmenu', (event) => {
+              event.preventDefault();
+              showBookmarkContextMenu(event, bookmark);
+            });
+            
+            // 드래그 기능 추가
+            addDragFunctionality(item);
+            
+            // 아이콘 설정
+            setBookmarkIcon(icon, bookmark.url);
+            
+            // 컨테이너에 추가
+            container.appendChild(item);
           });
           
-          // 북마크 컨테이너에 아이템 추가
-          container.appendChild(bookmarkItem);
+          // 스크롤 기능 추가
+          const isVertical = settings.bookmarkBar && settings.bookmarkBar.position === 'left' || 
+                           settings.bookmarkBar && settings.bookmarkBar.position === 'right';
+          addScrollFunctionality(isVertical);
           
-          // 아이콘 로드 (비동기)
-          loadIconForBookmark(bookmark, iconElement);
-        });
+          // 로딩 상태 업데이트
+          isLoadingBookmarks = false;
+          console.log('북마크 표시 완료');
+        };
         
-        // 스크롤 기능 추가 (필요 시)
-        addScrollFunctionality(isVertical);
+        // 북마크 렌더링 실행
+        renderAllItems();
+      } catch (error) {
+        console.error('북마크 표시 중 오류 발생:', error);
+        isLoadingBookmarks = false;
+      }
+    }
+
+    // 드래그 기능 추가 함수
+    function addDragFunctionality(item) {
+      // 드래그 시작 이벤트
+      item.setAttribute('draggable', 'true');
+      
+      item.addEventListener('dragstart', (event) => {
+        // 드래그 데이터 설정
+        const bookmarkId = item.getAttribute('data-id');
+        const bookmarkUrl = item.getAttribute('data-url');
+        
+        event.dataTransfer.setData('text/plain', bookmarkUrl);
+        event.dataTransfer.setData('application/x-bookmark', JSON.stringify({
+          id: bookmarkId,
+          url: bookmarkUrl
+        }));
+        
+        // 드래그 효과 설정
+        event.dataTransfer.effectAllowed = 'move';
+        
+        // 드래그 중인 항목 스타일 변경
+        item.style.opacity = '0.5';
+      });
+      
+      // 드래그 종료 이벤트
+      item.addEventListener('dragend', () => {
+        // 스타일 복원
+        item.style.opacity = '1';
+      });
+      
+      // 드래그 오버 이벤트
+      item.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        
+        // 드래그 오버 스타일 적용
+        item.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+        
+        // 다크 모드인 경우 스타일 조정
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          item.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        }
+      });
+      
+      // 드래그 떠남 이벤트
+      item.addEventListener('dragleave', () => {
+        // 스타일 복원
+        item.style.backgroundColor = 'transparent';
+      });
+      
+      // 드롭 이벤트
+      item.addEventListener('drop', (event) => {
+        event.preventDefault();
+        
+        // 스타일 복원
+        item.style.backgroundColor = 'transparent';
+        
+        // 드롭된 북마크 데이터 가져오기
+        const bookmarkData = event.dataTransfer.getData('application/x-bookmark');
+        if (!bookmarkData) return;
+        
+        try {
+          const draggedBookmark = JSON.parse(bookmarkData);
+          const targetBookmarkId = item.getAttribute('data-id');
+          
+          // 같은 항목이면 무시
+          if (draggedBookmark.id === targetBookmarkId) return;
+          
+          // 북마크 순서 변경 메시지 전송
+          chrome.runtime.sendMessage({
+            action: 'moveBookmark',
+            bookmarkId: draggedBookmark.id,
+            targetId: targetBookmarkId
+          }, (response) => {
+            if (response && response.success) {
+              console.log('북마크 순서 변경 성공');
+              // 북마크 다시 로드
+              loadBookmarks();
+            } else {
+              console.error('북마크 순서 변경 실패:', response ? response.error : '알 수 없는 오류');
+            }
+          });
+        } catch (error) {
+          console.error('드롭 이벤트 처리 중 오류 발생:', error);
+        }
       });
     }
 
-    // 스크롤 기능 추가
+    // 북마크 바 업데이트 함수
+    function updateBookmarkBar() {
+      console.log('북마크 바 업데이트 시작');
+      
+      // 북마크 바 요소 찾기
+      const bookmarkBar = document.getElementById('bookmark-bar');
+      if (!bookmarkBar) {
+        console.log('북마크 바가 없어 새로 생성합니다');
+        initBookmarkBar();
+        return;
+      }
+      
+      // 설정에 따라 북마크 바 스타일 업데이트
+      applyBookmarkBarStyles(bookmarkBar);
+      
+      // 북마크 다시 로드
+      loadBookmarks();
+      
+      console.log('북마크 바 업데이트 완료');
+    }
+    
+    // 북마크 바 스타일 적용 함수
+    function applyBookmarkBarStyles(bookmarkBar) {
+      try {
+        if (!bookmarkBar) {
+          console.error('북마크 바 요소가 없어 스타일을 적용할 수 없습니다');
+          return;
+        }
+        
+        // 기본 스타일 설정
+        bookmarkBar.style.position = 'fixed';
+        bookmarkBar.style.zIndex = '2147483647'; // 최대 z-index 값
+        bookmarkBar.style.display = 'flex';
+        bookmarkBar.style.alignItems = 'center';
+        bookmarkBar.style.justifyContent = 'flex-start';
+        bookmarkBar.style.padding = '0 8px';
+        bookmarkBar.style.boxSizing = 'border-box';
+        bookmarkBar.style.transition = 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)';
+        bookmarkBar.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        bookmarkBar.style.visibility = 'visible';
+        bookmarkBar.style.opacity = '1';
+        
+        // 설정에서 스타일 가져오기
+        const barSettings = settings.bookmarkBar || {};
+        
+        // 위치 설정 초기화
+        bookmarkBar.style.top = 'auto';
+        bookmarkBar.style.right = 'auto';
+        bookmarkBar.style.bottom = 'auto';
+        bookmarkBar.style.left = 'auto';
+        bookmarkBar.style.width = 'auto';
+        bookmarkBar.style.height = 'auto';
+        bookmarkBar.style.flexDirection = 'row';
+        
+        // 위치 설정
+        const position = barSettings.position || 'top';
+        
+        switch (position) {
+          case 'top':
+            bookmarkBar.style.top = '0';
+            bookmarkBar.style.left = '0';
+            bookmarkBar.style.width = '100%';
+            bookmarkBar.style.height = 'auto';
+            bookmarkBar.style.minHeight = '28px';
+            break;
+            
+          case 'right':
+            bookmarkBar.style.top = '0';
+            bookmarkBar.style.right = '0';
+            bookmarkBar.style.height = '100%';
+            bookmarkBar.style.width = 'auto';
+            bookmarkBar.style.minWidth = '28px';
+            bookmarkBar.style.flexDirection = 'column';
+            break;
+            
+          case 'bottom':
+            bookmarkBar.style.bottom = '0';
+            bookmarkBar.style.left = '0';
+            bookmarkBar.style.width = '100%';
+            bookmarkBar.style.height = 'auto';
+            bookmarkBar.style.minHeight = '28px';
+            break;
+            
+          case 'left':
+            bookmarkBar.style.top = '0';
+            bookmarkBar.style.left = '0';
+            bookmarkBar.style.height = '100%';
+            bookmarkBar.style.width = 'auto';
+            bookmarkBar.style.minWidth = '28px';
+            bookmarkBar.style.flexDirection = 'column';
+            break;
+            
+          case 'topRight':
+            bookmarkBar.style.top = '0';
+            bookmarkBar.style.right = '0';
+            bookmarkBar.style.width = '50%';
+            bookmarkBar.style.height = 'auto';
+            bookmarkBar.style.minHeight = '28px';
+            break;
+            
+          case 'topLeft':
+            bookmarkBar.style.top = '0';
+            bookmarkBar.style.left = '0';
+            bookmarkBar.style.width = '50%';
+            bookmarkBar.style.height = 'auto';
+            bookmarkBar.style.minHeight = '28px';
+            break;
+            
+          case 'bottomRight':
+            bookmarkBar.style.bottom = '0';
+            bookmarkBar.style.right = '0';
+            bookmarkBar.style.width = '50%';
+            bookmarkBar.style.height = 'auto';
+            bookmarkBar.style.minHeight = '28px';
+            break;
+            
+          case 'bottomLeft':
+            bookmarkBar.style.bottom = '0';
+            bookmarkBar.style.left = '0';
+            bookmarkBar.style.width = '50%';
+            bookmarkBar.style.height = 'auto';
+            bookmarkBar.style.minHeight = '28px';
+            break;
+        }
+        
+        // 크롬 UI 스타일 사용 여부
+        const useChromeStyle = barSettings.useChromeStyle !== undefined ? barSettings.useChromeStyle : true;
+        
+        if (useChromeStyle) {
+          // 크롬 스타일 적용
+          bookmarkBar.style.backgroundColor = '#f1f3f4';
+          bookmarkBar.style.borderBottom = '1px solid rgba(0, 0, 0, 0.1)';
+          bookmarkBar.style.boxShadow = 'none';
+          
+          // 다크 모드 감지 및 적용
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            bookmarkBar.style.backgroundColor = '#292a2d';
+            bookmarkBar.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+            bookmarkBar.style.color = '#e8eaed';
+          } else {
+            bookmarkBar.style.color = '#202124';
+          }
+          
+          // 북마크 컨테이너 스타일 설정
+          const container = bookmarkBar.querySelector('.bookmark-container');
+          if (container) {
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+            container.style.overflow = 'auto';
+            container.style.width = '100%';
+            container.style.height = '100%';
+            container.style.padding = '4px 0';
+            
+            // 스크롤바 숨기기
+            container.style.scrollbarWidth = 'none'; // Firefox
+            container.style.msOverflowStyle = 'none'; // IE/Edge
+            container.style.webkitOverflowScrolling = 'touch'; // iOS 모멘텀 스크롤
+            
+            // 스크롤바 숨기기 (WebKit)
+            const styleSheet = document.createElement('style');
+            styleSheet.textContent = `
+              #bookmark-container::-webkit-scrollbar {
+                display: none;
+              }
+            `;
+            document.head.appendChild(styleSheet);
+          }
+        } else {
+          // 사용자 정의 스타일 적용
+          const backgroundColor = barSettings.backgroundColor || '#f1f3f4';
+          const textColor = barSettings.textColor || '#333333';
+          const opacity = barSettings.opacity !== undefined ? barSettings.opacity / 100 : 1;
+          
+          bookmarkBar.style.backgroundColor = convertToRGBA(backgroundColor, opacity);
+          bookmarkBar.style.color = textColor;
+          bookmarkBar.style.backdropFilter = 'blur(5px)';
+          bookmarkBar.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.12)';
+          bookmarkBar.style.borderBottom = '1px solid rgba(0, 0, 0, 0.1)';
+          
+          // 다크 모드 감지 및 적용
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            bookmarkBar.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+          }
+          
+          // 북마크 컨테이너 스타일 설정
+          const container = bookmarkBar.querySelector('.bookmark-container');
+          if (container) {
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+            container.style.overflow = 'auto';
+            container.style.width = '100%';
+            container.style.height = '100%';
+            container.style.padding = '4px 0';
+          }
+        }
+      } catch (error) {
+        console.error('북마크 바 스타일 적용 중 오류 발생:', error);
+        
+        // 오류 발생 시 기본 스타일 적용
+        try {
+          if (bookmarkBar) {
+            bookmarkBar.style.position = 'fixed';
+            bookmarkBar.style.top = '0';
+            bookmarkBar.style.left = '0';
+            bookmarkBar.style.width = '100%';
+            bookmarkBar.style.height = '28px';
+            bookmarkBar.style.backgroundColor = '#f1f3f4';
+            bookmarkBar.style.zIndex = '2147483647';
+            bookmarkBar.style.display = 'flex';
+            bookmarkBar.style.alignItems = 'center';
+            bookmarkBar.style.padding = '0 8px';
+            bookmarkBar.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+            bookmarkBar.style.visibility = 'visible';
+            bookmarkBar.style.opacity = '1';
+            
+            // 다크 모드 감지 및 적용
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              bookmarkBar.style.backgroundColor = '#292a2d';
+              bookmarkBar.style.color = '#e8eaed';
+            }
+          }
+        } catch (fallbackError) {
+          console.error('기본 스타일 적용 중 오류 발생:', fallbackError);
+        }
+      }
+    }
+
+    // 색상을 RGBA로 변환하는 함수
+    function convertToRGBA(color, opacity) {
+      // 이미 rgba 형식인 경우
+      if (color.startsWith('rgba(')) {
+        return color;
+      }
+      
+      // rgb 형식인 경우
+      if (color.startsWith('rgb(')) {
+        const rgb = color.match(/\d+/g);
+        return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
+      }
+      
+      // hex 형식인 경우
+      if (color.startsWith('#')) {
+        let hex = color.substring(1);
+        
+        // 3자리 hex를 6자리로 변환
+        if (hex.length === 3) {
+          hex = hex.split('').map(h => h + h).join('');
+        }
+        
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+      }
+      
+      // 기본값 반환
+      return `rgba(241, 243, 244, ${opacity})`;
+    }
+
+    // body 패딩 조정 함수
+    function adjustBodyPadding() {
+      try {
+        // 북마크 바 요소 찾기
+        const bookmarkBar = document.getElementById('bookmark-bar');
+        if (!bookmarkBar) {
+          console.log('북마크 바가 없어 body 패딩을 조정할 수 없습니다');
+          return;
+        }
+        
+        // 북마크 바가 표시되지 않는 경우 패딩 제거
+        if (bookmarkBar.style.display === 'none' || bookmarkBar.style.visibility === 'hidden') {
+          document.body.style.paddingTop = '';
+          document.body.style.paddingRight = '';
+          document.body.style.paddingBottom = '';
+          document.body.style.paddingLeft = '';
+          return;
+        }
+        
+        // 북마크 바 높이 계산
+        const barHeight = bookmarkBar.offsetHeight;
+        const barWidth = bookmarkBar.offsetWidth;
+        
+        // 설정에서 위치 가져오기
+        const barSettings = settings.bookmarkBar || {};
+        const position = barSettings.position || 'top';
+        
+        // 기존 패딩 초기화
+        document.body.style.paddingTop = '';
+        document.body.style.paddingRight = '';
+        document.body.style.paddingBottom = '';
+        document.body.style.paddingLeft = '';
+        
+        // 위치에 따라 패딩 조정
+        switch (position) {
+          case 'top':
+            document.body.style.paddingTop = `${barHeight}px`;
+            break;
+            
+          case 'right':
+            document.body.style.paddingRight = `${barWidth}px`;
+            break;
+            
+          case 'bottom':
+            document.body.style.paddingBottom = `${barHeight}px`;
+            break;
+            
+          case 'left':
+            document.body.style.paddingLeft = `${barWidth}px`;
+            break;
+            
+          // 코너 위치의 경우 패딩을 적용하지 않음
+          case 'topRight':
+          case 'topLeft':
+          case 'bottomRight':
+          case 'bottomLeft':
+            // 코너 위치는 패딩을 적용하지 않음
+            break;
+        }
+        
+        console.log(`body 패딩 조정 완료 (위치: ${position}, 높이: ${barHeight}px, 너비: ${barWidth}px)`);
+      } catch (error) {
+        console.error('body 패딩 조정 중 오류 발생:', error);
+      }
+    }
+
+    // 문자열에서 일관된 색상 생성 (파비콘에 사용)
+    function getColorFromString(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      
+      // 밝은 색상만 사용하기 위해 조정
+      const hue = Math.abs(hash) % 360;
+      const saturation = 65 + (Math.abs(hash) % 20); // 65% ~ 85%
+      const lightness = 45 + (Math.abs(hash) % 10);  // 45% ~ 55%
+      
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    // 북마크바 스크롤 기능 추가
     function addScrollFunctionality(isVertical) {
       const container = document.getElementById('bookmark-container');
       if (!container) return;
@@ -421,6 +1074,50 @@ if (window.BookStaxx) {
         container.addEventListener('scroll', () => {
           updateScrollButtonsVisibility(container, upButton, downButton, true);
         });
+        
+        // 마우스 위치에 따른 자동 스크롤 영역 생성
+        const topScrollZone = document.createElement('div');
+        topScrollZone.className = 'bookmark-scroll-zone bookmark-scroll-zone-top';
+        topScrollZone.style.position = 'absolute';
+        topScrollZone.style.top = '0';
+        topScrollZone.style.left = '0';
+        topScrollZone.style.width = '100%';
+        topScrollZone.style.height = '30px';
+        topScrollZone.style.zIndex = '2147483646';
+        container.parentNode.appendChild(topScrollZone);
+        
+        const bottomScrollZone = document.createElement('div');
+        bottomScrollZone.className = 'bookmark-scroll-zone bookmark-scroll-zone-bottom';
+        bottomScrollZone.style.position = 'absolute';
+        bottomScrollZone.style.bottom = '0';
+        bottomScrollZone.style.left = '0';
+        bottomScrollZone.style.width = '100%';
+        bottomScrollZone.style.height = '30px';
+        bottomScrollZone.style.zIndex = '2147483646';
+        container.parentNode.appendChild(bottomScrollZone);
+        
+        // 자동 스크롤 이벤트
+        let scrollInterval;
+        
+        topScrollZone.addEventListener('mouseenter', () => {
+          scrollInterval = setInterval(() => {
+            container.scrollTop -= 5;
+          }, 16);
+        });
+        
+        topScrollZone.addEventListener('mouseleave', () => {
+          clearInterval(scrollInterval);
+        });
+        
+        bottomScrollZone.addEventListener('mouseenter', () => {
+          scrollInterval = setInterval(() => {
+            container.scrollTop += 5;
+          }, 16);
+        });
+        
+        bottomScrollZone.addEventListener('mouseleave', () => {
+          clearInterval(scrollInterval);
+        });
       } else {
         // 좌측 스크롤 버튼
         const leftButton = createScrollButton('left');
@@ -436,6 +1133,50 @@ if (window.BookStaxx) {
         // 스크롤 이벤트 리스너
         container.addEventListener('scroll', () => {
           updateScrollButtonsVisibility(container, leftButton, rightButton, false);
+        });
+        
+        // 마우스 위치에 따른 자동 스크롤 영역 생성
+        const leftScrollZone = document.createElement('div');
+        leftScrollZone.className = 'bookmark-scroll-zone bookmark-scroll-zone-left';
+        leftScrollZone.style.position = 'absolute';
+        leftScrollZone.style.top = '0';
+        leftScrollZone.style.left = '0';
+        leftScrollZone.style.width = '30px';
+        leftScrollZone.style.height = '100%';
+        leftScrollZone.style.zIndex = '2147483646';
+        container.parentNode.appendChild(leftScrollZone);
+        
+        const rightScrollZone = document.createElement('div');
+        rightScrollZone.className = 'bookmark-scroll-zone bookmark-scroll-zone-right';
+        rightScrollZone.style.position = 'absolute';
+        rightScrollZone.style.top = '0';
+        rightScrollZone.style.right = '0';
+        rightScrollZone.style.width = '30px';
+        rightScrollZone.style.height = '100%';
+        rightScrollZone.style.zIndex = '2147483646';
+        container.parentNode.appendChild(rightScrollZone);
+        
+        // 자동 스크롤 이벤트
+        let scrollInterval;
+        
+        leftScrollZone.addEventListener('mouseenter', () => {
+          scrollInterval = setInterval(() => {
+            container.scrollLeft -= 5;
+          }, 16);
+        });
+        
+        leftScrollZone.addEventListener('mouseleave', () => {
+          clearInterval(scrollInterval);
+        });
+        
+        rightScrollZone.addEventListener('mouseenter', () => {
+          scrollInterval = setInterval(() => {
+            container.scrollLeft += 5;
+          }, 16);
+        });
+        
+        rightScrollZone.addEventListener('mouseleave', () => {
+          clearInterval(scrollInterval);
         });
       }
     }
@@ -613,1176 +1354,889 @@ if (window.BookStaxx) {
       }, 0);
     }
 
-    // 북마크바 생성 함수
-    function createBookmarkBar(settings) {
-      // 이미 존재하는지 확인
-      const existingBar = document.getElementById('bookmark-bar');
-      if (existingBar) {
-        return existingBar;
-      }
-
-      // 설정값이 없으면 기본값 사용
-      if (!settings) {
-        chrome.storage.sync.get(defaultSettings, (data) => {
-          if (chrome.runtime.lastError) {
-            console.error('설정 로드 오류:', chrome.runtime.lastError);
-            // 기본 설정 사용
-            createBookmarkBarWithSettings(defaultSettings);
-          } else {
-            createBookmarkBarWithSettings(data);
-          }
-        });
+    // 북마크바 DOM 감시 설정
+    function setupBookmarkBarObserver() {
+      // 이미 설정된 경우 중복 설정 방지
+      if (window.bookmarkBarObserverSetup) {
         return;
-      } else {
-        return createBookmarkBarWithSettings(settings);
       }
-    }
-
-    // 설정을 적용한 북마크 바 생성 함수
-    function createBookmarkBarWithSettings(data) {
-      console.log('북마크 바 생성 (설정 적용):', data);
+      window.bookmarkBarObserverSetup = true;
       
-      // 전역 settings 업데이트
-      settings = data || defaultSettings;
-      
-      // 기존 북마크 바 제거
-      const existingBar = document.getElementById('bookmark-bar');
-      if (existingBar) {
-        existingBar.remove();
-      }
-      
-      // 북마크 바 생성
-      const bar = createBookmarkBar(settings);
-      
-      // 현재 문서에 추가
-      document.body.appendChild(bar);
-      
-      // 위치에 따른 스타일 적용
-      adjustBarPositionAndPadding(settings.bookmarkBar.position || 'top');
-      
-      return bar;
-    }
-
-    // 북마크 바 위치 및 패딩 조정
-    function adjustBarPositionAndPadding(position) {
-      console.log('북마크 바 위치 조정:', position);
-      
-      const bar = document.getElementById('bookmark-bar');
-      if (!bar) {
-        console.error('북마크 바 요소를 찾을 수 없음');
+      // 북마크바 유지 설정이 활성화된 경우에만 감시
+      if (!window.BookStaxx.persistBookmarkBar) {
         return;
       }
       
-      // 모든 위치 클래스 제거
-      bar.classList.remove('top', 'bottom', 'left', 'right');
-      // 새 위치 클래스 추가
-      bar.classList.add(position);
-      
-      // 스타일 초기화
-      bar.style.top = '';
-      bar.style.bottom = '';
-      bar.style.left = '';
-      bar.style.right = '';
-      bar.style.width = '';
-      bar.style.height = '';
-      bar.style.flexDirection = '';
-      
-      // 위치별 특정 스타일 적용
-      if (position === 'top') {
-        bar.style.top = '0';
-        bar.style.left = '0';
-        bar.style.right = '0';
-        bar.style.width = '100%';
-        bar.style.height = 'auto';
-        bar.style.zIndex = '2147483647';
-        bar.style.flexDirection = 'row';
-        document.body.style.paddingTop = bar.offsetHeight + 'px';
-      } else if (position === 'bottom') {
-        bar.style.bottom = '0';
-        bar.style.left = '0';
-        bar.style.right = '0';
-        bar.style.width = '100%';
-        bar.style.height = 'auto';
-        bar.style.zIndex = '2147483647';
-        bar.style.flexDirection = 'row';
-        document.body.style.paddingBottom = bar.offsetHeight + 'px';
-      } else if (position === 'left') {
-        bar.style.top = '0';
-        bar.style.left = '0';
-        bar.style.bottom = '0';
-        bar.style.width = 'auto';
-        bar.style.minWidth = '40px';
-        bar.style.height = '100%';
-        bar.style.zIndex = '2147483647';
-        bar.style.flexDirection = 'column';
-        document.body.style.paddingLeft = bar.offsetWidth + 'px';
-        
-        // 왼쪽 배치를 위한 추가 스타일
-        const bookmarks = bar.querySelectorAll('.bookmark-item');
-        bookmarks.forEach(bookmark => {
-          bookmark.style.margin = '5px 0';
-          bookmark.style.width = '100%';
-          bookmark.style.justifyContent = 'center';
-        });
-      } else if (position === 'right') {
-        bar.style.top = '0';
-        bar.style.right = '0';
-        bar.style.bottom = '0';
-        bar.style.width = 'auto';
-        bar.style.minWidth = '40px';
-        bar.style.height = '100%';
-        bar.style.zIndex = '2147483647';
-        bar.style.flexDirection = 'column';
-        document.body.style.paddingRight = bar.offsetWidth + 'px';
-        
-        // 오른쪽 배치를 위한 추가 스타일
-        const bookmarks = bar.querySelectorAll('.bookmark-item');
-        bookmarks.forEach(bookmark => {
-          bookmark.style.margin = '5px 0';
-          bookmark.style.width = '100%';
-          bookmark.style.justifyContent = 'center';
-        });
-      }
-      
-      // 아이템 정렬도 위치에 맞게 변경
-      setTimeout(() => {
-        const newPadding = position === 'left' ? bar.offsetWidth : 
-                          position === 'right' ? bar.offsetWidth : 
-                          position === 'top' ? bar.offsetHeight : 
-                          position === 'bottom' ? bar.offsetHeight : 0;
-                            
-        // 안전하게 설정 확인
-        chrome.storage.sync.get(defaultSettings, (data) => {
-          // 전역 설정 사용
-          const localSettings = data || settings;
-          const bookmarkBarSettings = localSettings.bookmarkBar || {};
-          const shouldAdjustPadding = bookmarkBarSettings.adjustBodyPadding !== false;
+      try {
+        // document.body가 없는 경우 처리
+        if (!document.body) {
+          console.log('document.body가 없습니다. DOM이 로드될 때까지 대기합니다.');
           
-          if (shouldAdjustPadding) {
-            if (position === 'top') document.body.style.paddingTop = newPadding + 'px';
-            if (position === 'bottom') document.body.style.paddingBottom = newPadding + 'px';
-            if (position === 'left') document.body.style.paddingLeft = newPadding + 'px';
-            if (position === 'right') document.body.style.paddingRight = newPadding + 'px';
-          }
-        });
-      }, 100);
-    }
-
-    // 설정 변경 이벤트 리스너
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      console.log('콘텐츠 스크립트 메시지 수신:', message);
-      
-      // ping 메시지에 응답 (스크립트가 로드되었는지 확인)
-      if (message.action === 'ping') {
-        sendResponse({ success: true, loaded: true });
-        return true;
-      }
-      
-      // 북마크 바 초기화 요청
-      if (message.action === 'initBookmarkBar') {
-        initBookmarkBar();
-        sendResponse({ success: true });
-        return true;
-      }
-      
-      // 설정 업데이트 요청
-      if (message.action === 'settingsUpdated') {
-        if (message.settings) {
-          applySettings(message.settings);
-          sendResponse({ success: true });
-        } else {
-          sendResponse({ success: false, error: 'Settings not provided' });
-        }
-        return true;
-      }
-      
-      // 북마크 변경 알림
-      if (message.action === 'bookmarksChanged') {
-        fetchFreshBookmarks();
-        sendResponse({ success: true });
-        return true;
-      }
-      
-      // 알 수 없는 메시지
-      sendResponse({ success: false, error: 'Unknown message action' });
-      return true;
-    });
-
-    // URL 변경 감지 기능 - 개선 (중복 선언 수정)
-    let urlCheckInterval;
-
-    function startUrlChangeDetection() {
-      // 이미 실행 중인 인터벌이 있으면 중지
-      if (urlCheckInterval) {
-        clearInterval(urlCheckInterval);
-      }
-      
-      // URL 변경 주기적 확인
-      urlCheckInterval = setInterval(checkForURLChanges, 1000);
-    }
-
-    function checkForURLChanges() {
-      if (location.href !== lastUrl) {
-        console.log('URL 변경 감지:', lastUrl, '->', location.href);
-        lastUrl = location.href;
-        
-        // 페이지 전환 시 북마크 바가 없으면 재생성
-        const bookmarkBar = document.getElementById('bookmark-bar');
-        if (!bookmarkBar) {
-          console.log('북마크 바 없음, 재생성');
-          createBookmarkBar();
-        }
-        
-        // 북마크 재로드 (캐시 사용)
-        loadBookmarks();
-      }
-    }
-
-    // MutationObserver 설정 함수
-    function setupMutationObserver() {
-      console.log('MutationObserver 설정 중...');
-      
-      // 기존 Observer가 있으면 연결 해제
-      if (window.bookmarkBarObserver) {
-        window.bookmarkBarObserver.disconnect();
-      }
-      
-      // DOM 변경 감지를 위한 MutationObserver 생성
-      const observer = new MutationObserver((mutations) => {
-        // body가 제거되거나 북마크 바가 제거되었는지 확인
-        const bookmarkBar = document.getElementById('bookmark-bar');
-        const bookmarkButton = document.getElementById('bookmark-button');
-        
-        // 북마크 바가 없으면 재생성
-        if (!bookmarkBar && document.body) {
-          console.log('MutationObserver: 북마크 바가 제거됨, 재생성');
-          createBookmarkBar();
-        }
-        
-        // 북마크 버튼이 없으면 재생성
-        if (!bookmarkButton && document.body) {
-          console.log('MutationObserver: 북마크 버튼이 제거됨, 재생성');
-          const button = createBookmarkButton(settings);
-          document.body.appendChild(button);
-        }
-      });
-      
-      // 전체 문서의 변경 사항 관찰 (특히 북마크 바나 버튼이 제거되는 경우)
-      observer.observe(document, {
-        childList: true, // 자식 노드 추가/제거 감지
-        subtree: true    // 하위 트리 변경 감지
-      });
-      
-      // 인스턴스를 전역 변수에 저장 (나중에 연결 해제를 위해)
-      window.bookmarkBarObserver = observer;
-      
-      console.log('MutationObserver 설정 완료');
-    }
-
-    // CSS 스타일 적용 함수 - CSS 클래스 이름 일관성 확보
-    function applyStyles() {
-      console.log('북마크 바 스타일 적용');
-      
-      // 설정 로드
-      chrome.storage.sync.get(defaultSettings, (data) => {
-        // 전역 settings 변수 사용 대신 로컬 변수 사용
-        const styleSettings = data || defaultSettings;
-        
-        // 북마크 바 요소
-        const bar = document.getElementById('bookmark-bar');
-        if (!bar) {
-          console.error('북마크 바 요소를 찾을 수 없음');
+          const setupObserverWhenReady = () => {
+            if (document.body) {
+              console.log('DOM이 로드되었습니다. 북마크바 감시를 설정합니다.');
+              setupBookmarkBarObserver();
+              document.removeEventListener('DOMContentLoaded', setupObserverWhenReady);
+              window.removeEventListener('load', setupObserverWhenReady);
+            }
+          };
+          
+          document.addEventListener('DOMContentLoaded', setupObserverWhenReady);
+          window.addEventListener('load', setupObserverWhenReady);
           return;
         }
-
-        // 설정된 스타일 적용
-        const barSettings = styleSettings.bookmarkBar || {};
         
-        // 배경색 적용
-        if (barSettings.backgroundColor) {
-          bar.style.backgroundColor = barSettings.backgroundColor;
-        }
-        
-        // 불투명도 적용
-        if (typeof barSettings.opacity === 'number') {
-          bar.style.opacity = barSettings.opacity / 100;
-        }
-        
-        // 스타일 모드 적용 (투명/반투명)
-        if (barSettings.style === 'transparent') {
-          bar.style.backgroundColor = 'transparent';
-          bar.style.boxShadow = 'none';
-        } else if (barSettings.style === 'translucent') {
-          let bgColor = barSettings.backgroundColor || '#f1f3f4';
-          
-          // RGBA 형태로 변환 (투명도 적용)
-          if (bgColor.startsWith('#')) {
-            const r = parseInt(bgColor.substr(1, 2), 16);
-            const g = parseInt(bgColor.substr(3, 2), 16);
-            const b = parseInt(bgColor.substr(5, 2), 16);
-            const a = (barSettings.opacity || 80) / 100;
-            
-            bgColor = `rgba(${r}, ${g}, ${b}, ${a})`;
-            bar.style.backgroundColor = bgColor;
+        // MutationObserver 설정
+        const observer = new MutationObserver((mutations) => {
+          // 북마크바 유지 설정이 비활성화된 경우 감시 중단
+          if (!window.BookStaxx.persistBookmarkBar) {
+            observer.disconnect();
+            window.bookmarkBarObserverSetup = false;
+            return;
           }
           
-          bar.style.backdropFilter = 'blur(5px)';
-        }
-        
-        // 북마크 아이템 스타일 적용
-        const bookmarkItems = bar.querySelectorAll('.bookmark-item');
-        bookmarkItems.forEach(item => {
-          // 텍스트 색상 적용
-          const text = item.querySelector('.bookmark-text');
-          if (text && barSettings.textColor) {
-            text.style.color = barSettings.textColor;
+          // 북마크바가 이미 생성되어 있는 경우에만 처리
+          if (!window.BookStaxx.bookmarkBarCreated) {
+            return;
           }
           
-          // 텍스트 숨김/표시 설정
-          if (text) {
-            text.style.display = barSettings.showText !== false ? 'block' : 'none';
-          }
+          // 북마크바 요소 확인
+          const bookmarkBar = document.getElementById('bookmark-bar');
           
-          // 아이콘 크기 설정
-          const icon = item.querySelector('img');
-          if (icon) {
-            let iconSize = '16px'; // 중간 크기 (기본값)
+          // 북마크바가 DOM에서 제거된 경우 다시 추가
+          if (!bookmarkBar || !document.body.contains(bookmarkBar)) {
+            console.log('북마크바가 DOM에서 제거되었습니다. 다시 추가합니다.');
             
-            if (barSettings.iconSize === 'small') {
-              iconSize = '12px';
-            } else if (barSettings.iconSize === 'large') {
-              iconSize = '20px';
-            }
-            
-            icon.style.width = iconSize;
-            icon.style.height = iconSize;
-          }
-          
-          // 텍스트 크기 설정
-          if (text && barSettings.textSize) {
-            let fontSize = '13px'; // 중간 크기 (기본값)
-            
-            if (barSettings.textSize === 'small') {
-              fontSize = '11px';
-            } else if (barSettings.textSize === 'large') {
-              fontSize = '15px';
-            }
-            
-            text.style.fontSize = fontSize;
+            // 설정을 로드하고 북마크바 다시 생성
+            loadSettings().then(() => {
+              const newBookmarkBar = createBookmarkBar();
+              
+              // 문서에 북마크 바 추가
+              if (document.body) {
+                // 북마크 바를 body의 첫 번째 자식으로 추가
+                if (document.body.firstChild) {
+                  document.body.insertBefore(newBookmarkBar, document.body.firstChild);
+                } else {
+                  document.body.appendChild(newBookmarkBar);
+                }
+                
+                // 북마크 바 스타일 적용
+                applyBookmarkBarStyles(newBookmarkBar);
+                
+                // 북마크 로드
+                loadBookmarks();
+                
+                // 바디 패딩 조정
+                adjustBodyPadding();
+              }
+            }).catch(err => {
+              console.error('북마크바 재생성 중 오류 발생:', err);
+            });
           }
         });
         
-        // Chrome 북마크 바 숨김/표시 설정 적용
-        toggleChromeBookmarkBar(barSettings.hideChrome === true);
-      });
+        // 감시 시작 - childList와 subtree 모두 true로 설정하여 더 깊은 DOM 변경도 감지
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: false,
+          characterData: false
+        });
+        
+        // 추가: 페이지 가시성 변경 감지 (탭 전환 등)
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            // 페이지가 다시 보이게 되면 북마크바 존재 확인
+            const bookmarkBar = document.getElementById('bookmark-bar');
+            if (!bookmarkBar || !document.body.contains(bookmarkBar)) {
+              console.log('페이지 가시성 변경 후 북마크바가 없습니다. 다시 추가합니다.');
+              initBookmarkBar();
+            }
+          }
+        });
+        
+        console.log('북마크바 DOM 감시가 설정되었습니다.');
+      } catch (error) {
+        console.error('북마크바 DOM 감시 설정 중 오류 발생:', error);
+      }
     }
 
-    // 현재 페이지를 북마크에 추가하는 함수
-    function addCurrentPageToBookmarks() {
-      console.log('현재 페이지를 북마크에 추가 시도');
+    // 북마크 바 초기화 함수
+    function initBookmarkBar() {
+      try {
+        console.log('북마크 바 초기화 시작');
+        
+        // 이미 초기화된 경우 중복 초기화 방지
+        if (window.BookStaxxInitialized) {
+          console.log('북마크 바가 이미 초기화되어 있습니다');
+          return;
+        }
+        
+        // 초기화 플래그 설정
+        window.BookStaxxInitialized = true;
+        
+        // DOM이 준비되지 않은 경우 이벤트 리스너 추가
+        if (!document.body) {
+          console.log('DOM이 아직 준비되지 않았습니다. 이벤트 리스너를 추가합니다.');
+          
+          const initWhenReady = () => {
+            if (document.body) {
+              console.log('DOM이 로드되었습니다. 북마크 바를 초기화합니다.');
+              initBookmarkBar();
+              document.removeEventListener('DOMContentLoaded', initWhenReady);
+              window.removeEventListener('load', initWhenReady);
+            }
+          };
+          
+          document.addEventListener('DOMContentLoaded', initWhenReady);
+          window.addEventListener('load', initWhenReady);
+          return;
+        }
+        
+        // 설정 로드
+        loadSettings()
+          .then(() => {
+            // 북마크 바 생성
+            createBookmarkBar();
+            
+            // 북마크 바 DOM 감시 설정
+            setupBookmarkBarObserver();
+            
+            // URL 변경 감지 설정
+            setupUrlChangeDetection();
+            
+            // 북마크 로드
+            return loadBookmarks()
+              .then(() => {
+                console.log('북마크 바 초기화 완료');
+              })
+              .catch(error => {
+                console.error('북마크 로드 중 오류 발생:', error);
+                // 북마크 로드 실패해도 초기화는 완료된 것으로 처리
+                console.log('북마크 로드 실패했지만 북마크 바 초기화는 완료');
+              });
+          })
+          .catch(error => {
+            console.error('북마크 바 초기화 중 오류 발생:', error);
+            
+            // Extension context invalidated 오류 처리
+            if (error && error.message && error.message.includes('Extension context invalidated')) {
+              console.log('확장 프로그램 컨텍스트가 무효화되었습니다. 로컬 데이터로 초기화 시도');
+              
+              try {
+                // 기본 설정 사용
+                settings = defaultSettings;
+                
+                // 북마크 바 생성
+                createBookmarkBar();
+                
+                // 북마크 바 DOM 감시 설정
+                setupBookmarkBarObserver();
+                
+                // URL 변경 감지 설정
+                setupUrlChangeDetection();
+                
+                // 로컬 스토리지에서 캐시된 북마크 데이터 확인
+                const cachedData = localStorage.getItem('bookmarkCache');
+                if (cachedData) {
+                  try {
+                    const bookmarks = JSON.parse(cachedData);
+                    displayBookmarks(bookmarks);
+                  } catch (parseError) {
+                    console.error('캐시된 북마크 데이터 파싱 오류:', parseError);
+                    // 파싱 오류 시 빈 북마크 목록 표시
+                    displayBookmarks([]);
+                  }
+                } else {
+                  // 캐시된 데이터가 없는 경우 빈 북마크 목록 표시
+                  displayBookmarks([]);
+                }
+                
+                console.log('로컬 데이터로 북마크 바 초기화 완료');
+              } catch (fallbackError) {
+                console.error('로컬 데이터로 초기화 중 오류 발생:', fallbackError);
+                window.BookStaxxInitialized = false; // 초기화 실패 시 플래그 재설정
+              }
+            } else {
+              window.BookStaxxInitialized = false; // 초기화 실패 시 플래그 재설정
+            }
+          });
+      } catch (error) {
+        console.error('북마크 바 초기화 함수 실행 중 오류:', error);
+        window.BookStaxxInitialized = false; // 초기화 실패 시 플래그 재설정
+      }
+    }
+    
+    // URL 변경 감지 설정 함수
+    function setupUrlChangeDetection() {
+      try {
+        // 이미 설정된 경우 중복 설정 방지
+        if (window.urlChangeDetectionSetup) {
+          return;
+        }
+        window.urlChangeDetectionSetup = true;
+        
+        console.log('URL 변경 감지 설정');
+        
+        // 현재 URL 저장
+        let lastUrl = window.location.href;
+        
+        // URL 변경 처리 함수
+        const handleUrlChange = () => {
+          try {
+            const currentUrl = window.location.href;
+            
+            // URL이 변경된 경우에만 처리
+            if (currentUrl !== lastUrl) {
+              console.log('URL 변경 감지:', lastUrl, '->', currentUrl);
+              lastUrl = currentUrl;
+              
+              // 북마크바가 이미 존재하는지 확인
+              const existingBar = document.getElementById('bookmark-bar');
+              
+              // 북마크바가 없거나 오프라인 모드인 경우 북마크바 재생성
+              if (!existingBar || window.BookStaxx.offlineMode) {
+                console.log('URL 변경 후 북마크바 재생성');
+                
+                // 약간의 지연 후 북마크바 초기화 (DOM이 업데이트될 시간 제공)
+                setTimeout(() => {
+                  try {
+                    // 초기화 플래그 재설정
+                    window.BookStaxxInitialized = false;
+                    
+                    // 북마크바 초기화
+                    initBookmarkBar();
+                  } catch (initError) {
+                    console.error('URL 변경 후 북마크바 초기화 중 오류 발생:', initError);
+                  }
+                }, 300);
+              } else {
+                console.log('URL 변경 후 북마크바가 이미 존재함');
+              }
+            }
+          } catch (error) {
+            console.error('URL 변경 처리 중 오류 발생:', error);
+          }
+        };
+        
+        // history API 감시
+        const originalPushState = history.pushState;
+        const originalReplaceState = history.replaceState;
+        
+        // pushState 오버라이드
+        history.pushState = function() {
+          originalPushState.apply(this, arguments);
+          handleUrlChange();
+        };
+        
+        // replaceState 오버라이드
+        history.replaceState = function() {
+          originalReplaceState.apply(this, arguments);
+          handleUrlChange();
+        };
+        
+        // popstate 이벤트 리스너 추가
+        window.addEventListener('popstate', handleUrlChange);
+        
+        // hashchange 이벤트 리스너 추가
+        window.addEventListener('hashchange', handleUrlChange);
+        
+        // 주기적으로 URL 변경 확인 (SPA에서 history API를 사용하지 않는 경우 대비)
+        setInterval(handleUrlChange, 1000);
+        
+        console.log('URL 변경 감지 설정 완료');
+      } catch (error) {
+        console.error('URL 변경 감지 설정 중 오류 발생:', error);
+        window.urlChangeDetectionSetup = false;
+      }
+    }
+
+    // 북마크 바 생성 함수
+    function createBookmarkBar() {
+      try {
+        console.log('북마크 바 생성 시작');
+        
+        // 이미 존재하는 북마크 바 확인
+        let bookmarkBar = document.getElementById('bookmark-bar');
+        if (bookmarkBar) {
+          console.log('북마크 바가 이미 존재합니다. 기존 북마크 바를 사용합니다.');
+          return bookmarkBar;
+        }
+        
+        // 북마크 바 생성
+        bookmarkBar = document.createElement('div');
+        bookmarkBar.id = 'bookmark-bar';
+        bookmarkBar.className = 'bookmark-bar';
+        
+        // 북마크 컨테이너 생성
+        const container = document.createElement('div');
+        container.id = 'bookmark-container';
+        container.className = 'bookmark-container';
+        bookmarkBar.appendChild(container);
+        
+        // 북마크 바를 body에 추가
+        if (document.body) {
+          // 북마크 바를 body의 첫 번째 자식으로 추가 (z-index 문제 해결)
+          if (document.body.firstChild) {
+            document.body.insertBefore(bookmarkBar, document.body.firstChild);
+          } else {
+            document.body.appendChild(bookmarkBar);
+          }
+          
+          // 북마크 바 스타일 적용
+          applyBookmarkBarStyles(bookmarkBar);
+          
+          // body 패딩 조정
+          adjustBodyPadding();
+          
+          // 북마크 바 생성 플래그 설정
+          window.BookStaxx.bookmarkBarCreated = true;
+          
+          console.log('북마크 바 생성 완료');
+        } else {
+          console.error('document.body가 없어 북마크 바를 추가할 수 없습니다');
+        }
+        
+        return bookmarkBar;
+      } catch (error) {
+        console.error('북마크 바 생성 중 오류 발생:', error);
+        
+        // 오류 발생 시 기본 북마크 바 생성 시도
+        try {
+          const fallbackBar = document.createElement('div');
+          fallbackBar.id = 'bookmark-bar';
+          fallbackBar.className = 'bookmark-bar';
+          fallbackBar.style.position = 'fixed';
+          fallbackBar.style.top = '0';
+          fallbackBar.style.left = '0';
+          fallbackBar.style.width = '100%';
+          fallbackBar.style.height = '28px';
+          fallbackBar.style.backgroundColor = '#f1f3f4';
+          fallbackBar.style.zIndex = '2147483647';
+          fallbackBar.style.display = 'flex';
+          fallbackBar.style.alignItems = 'center';
+          fallbackBar.style.padding = '0 8px';
+          fallbackBar.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+          
+          const fallbackContainer = document.createElement('div');
+          fallbackContainer.id = 'bookmark-container';
+          fallbackContainer.className = 'bookmark-container';
+          fallbackContainer.style.display = 'flex';
+          fallbackContainer.style.alignItems = 'center';
+          fallbackContainer.style.overflowX = 'auto';
+          fallbackContainer.style.width = '100%';
+          fallbackContainer.style.height = '100%';
+          
+          fallbackBar.appendChild(fallbackContainer);
+          
+          if (document.body) {
+            if (document.body.firstChild) {
+              document.body.insertBefore(fallbackBar, document.body.firstChild);
+            } else {
+              document.body.appendChild(fallbackBar);
+            }
+            
+            window.BookStaxx.bookmarkBarCreated = true;
+            console.log('기본 북마크 바 생성 완료 (오류 복구)');
+          }
+          
+          return fallbackBar;
+        } catch (fallbackError) {
+          console.error('기본 북마크 바 생성 중 오류 발생:', fallbackError);
+          return null;
+        }
+      }
+    }
+
+    // 설정 로드 함수
+    function loadSettings() {
+      try {
+        console.log('설정 로드 시작');
+        
+        // 로컬 스토리지에서 캐시된 설정 확인
+        const cachedSettings = localStorage.getItem('bookstaxxSettings');
+        if (cachedSettings) {
+          try {
+            const parsedSettings = JSON.parse(cachedSettings);
+            console.log('로컬 스토리지에서 설정 로드:', parsedSettings);
+            settings = parsedSettings;
+            return Promise.resolve(parsedSettings);
+          } catch (parseError) {
+            console.error('캐시된 설정 파싱 오류:', parseError);
+            // 파싱 오류 시 계속 진행하여 chrome.storage에서 로드 시도
+          }
+        }
+        
+        // chrome.storage에서 설정 로드
+        return new Promise((resolve, reject) => {
+          try {
+            chrome.storage.sync.get(null, function(items) {
+              if (chrome.runtime.lastError) {
+                console.error('설정 로드 중 오류 발생:', chrome.runtime.lastError);
+                
+                // Extension context invalidated 오류 처리
+                if (chrome.runtime.lastError.message.includes('Extension context invalidated')) {
+                  console.log('확장 프로그램 컨텍스트가 무효화되었습니다. 기본 설정 사용');
+                  
+                  // 기본 설정 사용
+                  settings = defaultSettings;
+                  
+                  // 로컬 스토리지에 기본 설정 캐시
+                  try {
+                    localStorage.setItem('bookstaxxSettings', JSON.stringify(defaultSettings));
+                  } catch (storageError) {
+                    console.error('로컬 스토리지에 설정 저장 실패:', storageError);
+                  }
+                  
+                  resolve(defaultSettings);
+                  return;
+                }
+                
+                reject(chrome.runtime.lastError);
+                return;
+              }
+              
+              console.log('설정 로드 완료:', items);
+              settings = items;
+              
+              // 로컬 스토리지에 설정 캐시
+              try {
+                localStorage.setItem('bookstaxxSettings', JSON.stringify(items));
+              } catch (storageError) {
+                console.error('로컬 스토리지에 설정 저장 실패:', storageError);
+              }
+              
+              resolve(items);
+            });
+          } catch (error) {
+            console.error('설정 로드 중 예외 발생:', error);
+            
+            // 오류 발생 시 기본 설정 사용
+            settings = defaultSettings;
+            
+            // 로컬 스토리지에 기본 설정 캐시
+            try {
+              localStorage.setItem('bookstaxxSettings', JSON.stringify(defaultSettings));
+            } catch (storageError) {
+              console.error('로컬 스토리지에 설정 저장 실패:', storageError);
+            }
+            
+            resolve(defaultSettings);
+          }
+        });
+      } catch (error) {
+        console.error('설정 로드 함수 실행 중 오류:', error);
+        return Promise.resolve(defaultSettings);
+      }
+    }
+
+    // 북마크 아이콘 설정 함수
+    function setBookmarkIcon(iconElement, url) {
+      if (!iconElement || !url) return;
       
-      // 현재 페이지 정보 가져오기
-      const title = document.title;
-      const url = window.location.href;
+      try {
+        // 기본 스타일 설정
+        iconElement.style.width = '16px';
+        iconElement.style.height = '16px';
+        iconElement.style.display = 'inline-block';
+        iconElement.style.marginRight = '6px';
+        iconElement.style.backgroundSize = 'contain';
+        iconElement.style.backgroundPosition = 'center';
+        iconElement.style.backgroundRepeat = 'no-repeat';
+        iconElement.style.borderRadius = '3px';
+        
+        // 캐시된 아이콘 URL 확인
+        chrome.storage.local.get(['iconCache'], function(result) {
+          const iconCache = result.iconCache || {};
+          
+          // 캐시에 아이콘이 있는 경우
+          if (iconCache[url]) {
+            const cachedIcon = iconCache[url];
+            const img = new Image();
+            
+            // 이미지 로드 오류 처리
+            img.onerror = function() {
+              console.log('캐시된 아이콘 로드 실패:', url);
+              // 기본 아이콘으로 대체
+              setDefaultIcon(iconElement, url);
+            };
+            
+            img.onload = function() {
+              iconElement.style.backgroundImage = `url(${cachedIcon})`;
+            };
+            
+            img.src = cachedIcon;
+            return;
+          }
+          
+          // 내장 아이콘 사용 시도 (확장 프로그램 내부 아이콘)
+          try {
+            // URL에서 도메인 추출
+            let domain = '';
+            try {
+              const urlObj = new URL(url);
+              domain = urlObj.hostname.replace('www.', '');
+            } catch (error) {
+              console.warn('URL 파싱 실패:', url);
+              domain = url;
+            }
+            
+            // 일반적인 도메인에 대한 내장 아이콘 경로
+            const commonIcons = {
+              'google.com': 'images/icons/google.png',
+              'youtube.com': 'images/icons/youtube.png',
+              'github.com': 'images/icons/github.png',
+              'naver.com': 'images/icons/naver.png',
+              'gmail.com': 'images/icons/gmail.png',
+              'mail.google.com': 'images/icons/gmail.png'
+            };
+            
+            // 도메인에 맞는 내장 아이콘이 있는지 확인
+            for (const [key, iconPath] of Object.entries(commonIcons)) {
+              if (domain.includes(key)) {
+                const internalIconUrl = chrome.runtime.getURL(iconPath);
+                iconElement.style.backgroundImage = `url(${internalIconUrl})`;
+                
+                // 아이콘 캐시에 저장
+                if (settings.bookmarkBar && settings.bookmarkBar.cacheIcons) {
+                  iconCache[url] = internalIconUrl;
+                  chrome.storage.local.set({ 'iconCache': iconCache });
+                }
+                
+                return;
+              }
+            }
+          } catch (error) {
+            console.warn('내장 아이콘 설정 실패:', error);
+          }
+          
+          // URL 파싱 시도
+          let faviconUrl;
+          try {
+            const urlObj = new URL(url);
+            faviconUrl = urlObj.origin + '/favicon.ico';
+          } catch (error) {
+            console.warn('잘못된 URL 형식:', url, error);
+            setDefaultIcon(iconElement, url);
+            return;
+          }
+          
+          // 파비콘 이미지 로드 시도 (data URL로 변환하여 CSP 우회)
+          try {
+            // 파비콘을 가져와 data URL로 변환하는 함수
+            const fetchFaviconAsDataUrl = (faviconUrl) => {
+              return new Promise((resolve, reject) => {
+                // 백그라운드 스크립트에 요청
+                chrome.runtime.sendMessage({
+                  action: 'fetchFavicon',
+                  url: faviconUrl
+                }, (response) => {
+                  if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
+                    return;
+                  }
+                  
+                  if (response && response.success && response.dataUrl) {
+                    resolve(response.dataUrl);
+                  } else {
+                    reject(new Error('파비콘 가져오기 실패'));
+                  }
+                });
+              });
+            };
+            
+            // 파비콘 로드 시도
+            fetchFaviconAsDataUrl(faviconUrl)
+              .then(dataUrl => {
+                iconElement.style.backgroundImage = `url(${dataUrl})`;
+                
+                // 아이콘 캐시에 저장
+                if (settings.bookmarkBar && settings.bookmarkBar.cacheIcons) {
+                  iconCache[url] = dataUrl;
+                  chrome.storage.local.set({ 'iconCache': iconCache });
+                }
+              })
+              .catch(() => {
+                // favicon.ico 실패 시 favicon.png 시도
+                console.log('favicon.ico 로드 실패, favicon.png 시도:', url);
+                const pngUrl = faviconUrl.replace('.ico', '.png');
+                
+                fetchFaviconAsDataUrl(pngUrl)
+                  .then(dataUrl => {
+                    iconElement.style.backgroundImage = `url(${dataUrl})`;
+                    
+                    // 아이콘 캐시에 저장
+                    if (settings.bookmarkBar && settings.bookmarkBar.cacheIcons) {
+                      iconCache[url] = dataUrl;
+                      chrome.storage.local.set({ 'iconCache': iconCache });
+                    }
+                  })
+                  .catch(() => {
+                    // 모든 시도 실패 시 기본 아이콘 사용
+                    console.log('favicon.png 로드 실패, 기본 아이콘 사용:', url);
+                    setDefaultIcon(iconElement, url);
+                  });
+              });
+          } catch (error) {
+            console.error('파비콘 로드 중 오류 발생:', error);
+            setDefaultIcon(iconElement, url);
+          }
+        });
+      } catch (error) {
+        console.error('아이콘 설정 중 오류 발생:', error);
+        setDefaultIcon(iconElement, url);
+      }
+    }
+    
+    // 기본 아이콘 설정 함수
+    function setDefaultIcon(iconElement, url) {
+      if (!iconElement) return;
       
-      console.log('북마크 추가 메시지 전송:', { title, url });
+      // URL에서 색상 생성
+      const color = getColorFromString(url);
       
-      // 백그라운드 스크립트에 북마크 추가 요청
-      chrome.runtime.sendMessage(
-        { 
-          action: "addBookmark", 
-          title: title, 
-          url: url 
-        }, 
-        function(response) {
+      // 도메인 첫 글자 추출
+      let initial = '';
+      try {
+        const urlObj = new URL(url);
+        initial = urlObj.hostname.charAt(0).toUpperCase();
+      } catch (error) {
+        initial = url.charAt(0).toUpperCase();
+      }
+      
+      // 배경색 설정
+      iconElement.style.backgroundColor = color;
+      iconElement.style.backgroundImage = 'none';
+      
+      // 텍스트 설정
+      iconElement.textContent = initial;
+      iconElement.style.color = '#ffffff';
+      iconElement.style.display = 'flex';
+      iconElement.style.justifyContent = 'center';
+      iconElement.style.alignItems = 'center';
+      iconElement.style.fontWeight = 'bold';
+    }
+
+    // 메시지 리스너 설정
+    chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+      try {
+        // 메시지 유효성 검사
+        if (!message || typeof message !== 'object') {
+          console.warn('유효하지 않은 메시지 형식:', message);
+          sendResponse({ success: false, error: '유효하지 않은 메시지 형식' });
+          return;
+        }
+        
+        // 메시지 액션에 따른 처리
+        switch (message.action) {
+          case 'ping':
+            // 핑 메시지 응답
+            console.log('핑 메시지 수신');
+            sendResponse({ success: true, message: 'BookStaxx 컨텐츠 스크립트가 활성화되어 있습니다.' });
+            break;
+            
+          case 'settingsUpdated':
+            // 설정 업데이트 처리
+            console.log('설정 업데이트 메시지 수신:', message.settings);
+            
+            // 북마크바 유지 설정 업데이트
+            if (message.settings && message.settings.persistBookmarkBar !== undefined) {
+              window.BookStaxx.persistBookmarkBar = message.settings.persistBookmarkBar;
+              console.log('북마크바 유지 설정이 업데이트되었습니다:', window.BookStaxx.persistBookmarkBar);
+            }
+            
+            // 북마크바 업데이트
+            updateBookmarkBar();
+            
+            sendResponse({ success: true });
+            break;
+            
+          case 'initBookmarkBar':
+            // 북마크바 초기화 요청
+            console.log('북마크바 초기화 요청 수신');
+            initBookmarkBar();
+            sendResponse({ success: true });
+            break;
+            
+          default:
+            // 알 수 없는 액션
+            console.warn('알 수 없는 메시지 액션:', message.action);
+            sendResponse({ success: false, error: '알 수 없는 액션' });
+            break;
+        }
+      } catch (error) {
+        console.error('메시지 처리 중 오류 발생:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+      
+      return true; // 비동기 응답 지원
+    });
+
+    // 북마크 열기 함수
+    function openBookmark(url, newTab = false) {
+      try {
+        // 백그라운드 스크립트에 메시지 전송
+        chrome.runtime.sendMessage({
+          action: 'openBookmark',
+          url: url,
+          newTab: newTab
+        }, response => {
           if (chrome.runtime.lastError) {
-            console.error('북마크 추가 실패:', chrome.runtime.lastError);
-            alert(getMessage('bookmarkAddFailed') + ': ' + chrome.runtime.lastError.message);
+            console.error('북마크 열기 메시지 전송 오류:', chrome.runtime.lastError);
+            // 백그라운드 연결 실패 시 직접 열기 시도
+            if (newTab) {
+              window.open(url, '_blank');
+            } else {
+              window.location.href = url;
+            }
+            return;
+          }
+          
+          if (!response || !response.success) {
+            console.error('북마크 열기 실패:', response);
+            // 백그라운드 응답 실패 시 직접 열기 시도
+            if (newTab) {
+              window.open(url, '_blank');
+            } else {
+              window.location.href = url;
+            }
+          }
+        });
+      } catch (error) {
+        console.error('북마크 열기 중 오류 발생:', error);
+        // 오류 발생 시 직접 열기 시도
+        if (newTab) {
+          window.open(url, '_blank');
+        } else {
+          window.location.href = url;
+        }
+      }
+    }
+
+    // 북마크 편집 함수
+    function editBookmark(bookmark) {
+      try {
+        // 새 제목 입력 받기
+        const newTitle = prompt(getMessage('editBookmarkTitle'), bookmark.title);
+        if (newTitle === null) return; // 취소한 경우
+        
+        // 새 URL 입력 받기
+        const newUrl = prompt(getMessage('editBookmarkUrl'), bookmark.url);
+        if (newUrl === null) return; // 취소한 경우
+        
+        // 백그라운드에 편집 요청 전송
+        if (window.BookStaxx.offlineMode) {
+          console.log('오프라인 모드에서는 북마크 편집이 지원되지 않습니다');
+          alert(getMessage('offlineEditNotSupported'));
+          return;
+        }
+        
+        chrome.runtime.sendMessage({
+          action: 'editBookmark',
+          id: bookmark.id,
+          title: newTitle,
+          url: newUrl
+        }, response => {
+          if (chrome.runtime.lastError) {
+            console.error('북마크 편집 오류:', chrome.runtime.lastError);
+            alert(getMessage('editBookmarkError'));
             return;
           }
           
           if (response && response.success) {
-            console.log('북마크 추가 성공:', response.bookmark);
+            console.log('북마크 편집 성공');
             
-            // 북마크 추가 성공 알림
-            const notification = document.createElement('div');
-            notification.className = 'bookstaxx-notification';
-            notification.textContent = getMessage('bookmarkAdded');
-            document.body.appendChild(notification);
-            
-            // 알림 자동 제거
-            setTimeout(() => {
-              notification.classList.add('fade-out');
-              setTimeout(() => {
-                notification.remove();
-              }, 500);
-            }, 2000);
-            
-            // 북마크 목록 새로고침 (약간의 지연 후)
-            setTimeout(() => {
-              // 캐시 만료 처리
-              bookmarkCache.lastFetched = 0;
+            // 로컬 스토리지에서 캐시된 북마크 데이터 업데이트
+            const cachedData = localStorage.getItem('bookmarkCache');
+            if (cachedData) {
+              try {
+                const bookmarks = JSON.parse(cachedData);
+                const updatedBookmarks = bookmarks.map(b => {
+                  if (b.id === bookmark.id) {
+                    return { ...b, title: newTitle, url: newUrl };
+                  }
+                  return b;
+                });
+                
+                localStorage.setItem('bookmarkCache', JSON.stringify(updatedBookmarks));
+                localStorage.setItem('bookmarkCacheTimestamp', Date.now().toString());
+                
+                // 북마크 다시 표시
+                displayBookmarks(updatedBookmarks);
+              } catch (error) {
+                console.error('캐시된 북마크 데이터 업데이트 오류:', error);
+                // 오류 발생 시 북마크 다시 로드
+                loadBookmarks();
+              }
+            } else {
+              // 캐시된 데이터가 없는 경우 북마크 다시 로드
               loadBookmarks();
-            }, 500);
-          } else if (response && response.exists) {
-            console.log('북마크가 이미 존재함:', response.bookmark);
-            
-            // 이미 존재하는 북마크 알림
-            const notification = document.createElement('div');
-            notification.className = 'bookstaxx-notification';
-            notification.textContent = getMessage('bookmarkExists');
-            document.body.appendChild(notification);
-            
-            // 알림 자동 제거
-            setTimeout(() => {
-              notification.classList.add('fade-out');
-              setTimeout(() => {
-                notification.remove();
-              }, 500);
-            }, 2000);
+            }
           } else {
-            console.error('북마크 추가 실패:', response);
-            alert(getMessage('bookmarkAddFailed'));
+            console.error('북마크 편집 실패:', response);
+            alert(getMessage('editBookmarkError'));
           }
-        }
-      );
+        });
+      } catch (error) {
+        console.error('북마크 편집 중 오류 발생:', error);
+        alert(getMessage('editBookmarkError'));
+      }
     }
-
+    
     // 북마크 삭제 함수
     function removeBookmark(bookmark) {
-      // 북마크 삭제 메시지 업데이트
-      showNotification(getMessage('bookmarkRemoved'));
-      
-      // 백그라운드 스크립트에 북마크 삭제 요청
-      chrome.runtime.sendMessage(
-        { 
-          action: "removeBookmark", 
-          title: bookmark.title, 
-          url: bookmark.url 
-        }, 
-        function(response) {
+      try {
+        // 백그라운드에 삭제 요청 전송
+        if (window.BookStaxx.offlineMode) {
+          console.log('오프라인 모드에서는 북마크 삭제가 지원되지 않습니다');
+          alert(getMessage('offlineDeleteNotSupported'));
+          return;
+        }
+        
+        chrome.runtime.sendMessage({
+          action: 'removeBookmark',
+          id: bookmark.id
+        }, response => {
           if (chrome.runtime.lastError) {
-            console.error('북마크 삭제 실패:', chrome.runtime.lastError);
-            alert(getMessage('bookmarkRemoveFailed') + ': ' + chrome.runtime.lastError.message);
-          } else {
-            console.log('북마크 삭제 성공:', response.success);
+            console.error('북마크 삭제 오류:', chrome.runtime.lastError);
+            alert(getMessage('deleteBookmarkError'));
+            return;
+          }
+          
+          if (response && response.success) {
+            console.log('북마크 삭제 성공');
             
-            // 북마크 목록 새로고침 (약간의 지연 후)
-            setTimeout(() => {
-              // 캐시 만료 처리
-              bookmarkCache.lastFetched = 0;
+            // 로컬 스토리지에서 캐시된 북마크 데이터 업데이트
+            const cachedData = localStorage.getItem('bookmarkCache');
+            if (cachedData) {
+              try {
+                const bookmarks = JSON.parse(cachedData);
+                const updatedBookmarks = bookmarks.filter(b => b.id !== bookmark.id);
+                
+                localStorage.setItem('bookmarkCache', JSON.stringify(updatedBookmarks));
+                localStorage.setItem('bookmarkCacheTimestamp', Date.now().toString());
+                
+                // 북마크 다시 표시
+                displayBookmarks(updatedBookmarks);
+              } catch (error) {
+                console.error('캐시된 북마크 데이터 업데이트 오류:', error);
+                // 오류 발생 시 북마크 다시 로드
+                loadBookmarks();
+              }
+            } else {
+              // 캐시된 데이터가 없는 경우 북마크 다시 로드
               loadBookmarks();
-            }, 500);
-          }
-        }
-      );
-    }
-
-    // 알림 표시 함수
-    function showNotification(message) {
-      const notification = document.createElement('div');
-      notification.className = 'bookstaxx-notification';
-      notification.textContent = message;
-      document.body.appendChild(notification);
-      
-      // 알림 자동 제거
-      setTimeout(() => {
-        notification.classList.add('fade-out');
-        setTimeout(() => {
-          notification.remove();
-        }, 500);
-      }, 2000);
-    }
-
-    function applySettings(settings) {
-      console.log('설정 적용:', settings);
-      
-      // 북마크 바 요소 확인
-      const bookmarkBar = document.getElementById('bookmark-bar');
-      
-      if (bookmarkBar) {
-        // 북마크 바 설정 적용
-        if (settings.bookmarkBar) {
-          // 위치 변경
-          if (settings.bookmarkBar.position) {
-            repositionBookmarkBar(settings.bookmarkBar.position);
-          }
-          
-          // 배경색 적용
-          if (settings.bookmarkBar.backgroundColor) {
-            bookmarkBar.style.backgroundColor = settings.bookmarkBar.backgroundColor;
-          }
-          
-          // 텍스트 색상 적용
-          if (settings.bookmarkBar.textColor) {
-            bookmarkBar.style.color = settings.bookmarkBar.textColor;
-          }
-          
-          // 투명도 적용
-          if (settings.bookmarkBar.opacity !== undefined) {
-            bookmarkBar.style.opacity = settings.bookmarkBar.opacity / 100;
-          }
-          
-          // 스타일 모드 적용 (일반/투명/반투명)
-          bookmarkBar.classList.remove('transparent', 'semi-transparent');
-          if (settings.bookmarkBar.style === 'transparent') {
-            bookmarkBar.classList.add('transparent');
-          } else if (settings.bookmarkBar.style === 'semi-transparent') {
-            bookmarkBar.classList.add('semi-transparent');
-          }
-          
-          // 아이콘 크기 적용
-          if (settings.bookmarkBar.iconSize) {
-            bookmarkBar.classList.remove('icon-small', 'icon-medium', 'icon-large');
-            bookmarkBar.classList.add(`icon-${settings.bookmarkBar.iconSize}`);
-          }
-          
-          // 텍스트 크기 적용
-          if (settings.bookmarkBar.textSize) {
-            bookmarkBar.classList.remove('text-small', 'text-medium', 'text-large');
-            bookmarkBar.classList.add(`text-${settings.bookmarkBar.textSize}`);
-          }
-          
-          // 텍스트 표시 여부 적용
-          if (settings.bookmarkBar.showText === false) {
-            bookmarkBar.classList.add('hide-text');
+            }
           } else {
-            bookmarkBar.classList.remove('hide-text');
-          }
-          
-          // Chrome 북마크 바 숨김 설정 적용
-          if (settings.bookmarkBar.hideChrome) {
-            toggleChromeBookmarkBar(true);
-          } else {
-            toggleChromeBookmarkBar(false);
-          }
-        }
-      }
-      
-      // 북마크 버튼 설정 적용
-      createBookmarkButton(settings);
-      
-      // 북마크 다시 로드 (새 설정 적용)
-      loadBookmarks();
-    }
-
-    // Chrome 북마크 바 숨김 CSS 추가
-    function toggleChromeBookmarkBar(hideChrome) {
-      console.log('Chrome 북마크 바 표시 설정:', hideChrome ? '숨김' : '표시');
-      
-      // Chrome 북마크 바를 숨기기 위한 스타일 요소 찾거나 생성
-      let chromeStyle = document.getElementById('chrome-bookmarks-hiding-style');
-      if (!chromeStyle) {
-        chromeStyle = document.createElement('style');
-        chromeStyle.id = 'chrome-bookmarks-hiding-style';
-        document.head.appendChild(chromeStyle);
-      }
-      
-      if (hideChrome) {
-        // Chrome 북마크 바를 숨기는 CSS 규칙 추가
-        chromeStyle.textContent = `
-          /* Chrome 북마크 바 숨기기 */
-          .bookmark-bar {
-            display: none !important;
-          }
-          
-          /* 자동 생성되는 북마크 관련 요소 숨기기 */
-          #bookmarks-bar,
-          #bookmark-bar-chrome,
-          .browser-toolbar[bookmarkbar="true"],
-          #PersonalToolbar,
-          #bookmarksToolbar {
-            display: none !important;
-          }
-          
-          /* 북마크 바를 위한 여백 제거 */
-          body.with-bookmarks-bar {
-            margin-top: 0 !important;
-          }
-        `;
-        console.log('Chrome 북마크 바 숨김 스타일 적용됨');
-      } else {
-        // 스타일 제거
-        chromeStyle.textContent = '';
-        console.log('Chrome 북마크 바 숨김 스타일 제거됨');
-      }
-    }
-
-    // Chrome 설정 페이지로 이동하는 링크 생성 함수
-    function createChromeSettingsLink() {
-      // 안내 메시지 생성
-      const message = document.createElement('div');
-      message.className = 'chrome-settings-message';
-      message.innerHTML = `
-        <p>Chrome 기본 북마크 바를 숨기려면 다음 단계를 따라주세요:</p>
-        <ol>
-          <li>Chrome 메뉴(⋮) > 설정 > 모양 > 북마크 바 표시 옵션을 비활성화합니다</li>
-        </ol>
-        <p>또는 아래 버튼을 클릭하여 안내 페이지로 이동할 수 있습니다.</p>
-        <button id="go-to-chrome-settings">북마크 바 숨기기 안내</button>
-      `;
-      
-      // 버튼 클릭 이벤트 처리
-      const button = message.querySelector('#go-to-chrome-settings');
-      if (button) {
-        button.addEventListener('click', () => {
-          // 백그라운드 스크립트에 메시지 전송하여 탭 열기
-          chrome.runtime.sendMessage({ 
-            action: 'openChromeSettings'
-          });
-        });
-      }
-      
-      return message;
-    }
-
-    // 북마크 동기화 관련 정보 메시지 표시 함수
-    function showBookmarkSyncInfo() {
-      // 기존 메시지가 있으면 제거
-      const existingInfo = document.getElementById('bookmark-sync-info');
-      if (existingInfo) {
-        existingInfo.remove();
-      }
-      
-      // 새 정보 메시지 생성
-      const infoBox = document.createElement('div');
-      infoBox.id = 'bookmark-sync-info';
-      infoBox.className = 'bookmark-info-message';
-      infoBox.innerHTML = `
-        <div class="info-header">
-          <span class="info-icon">ℹ️</span>
-          <span class="info-title">북마크 연동 정보</span>
-          <span class="close-btn">&times;</span>
-        </div>
-        <div class="info-content">
-          <p>BookStaxx는 Chrome 북마크와 자동으로 연동됩니다.</p>
-          <p>북마크 추가/편집/삭제가 Chrome 북마크에 자동 반영됩니다.</p>
-          <p>Chrome 기본 북마크 바를 숨기는 방법:</p>
-          <div id="chrome-settings-link-container"></div>
-        </div>
-      `;
-      
-      // Chrome 설정 링크 추가
-      const linkContainer = infoBox.querySelector('#chrome-settings-link-container');
-      linkContainer.appendChild(createChromeSettingsLink());
-      
-      // 닫기 버튼 이벤트 추가
-      const closeBtn = infoBox.querySelector('.close-btn');
-      closeBtn.addEventListener('click', () => {
-        infoBox.remove();
-      });
-      
-      // 메시지 스타일 추가
-      const style = document.createElement('style');
-      style.textContent = `
-        .bookmark-info-message {
-          position: fixed;
-          top: 10px;
-          right: 10px;
-          width: 320px;
-          background: #fff;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          z-index: 2147483647;
-          font-family: Arial, sans-serif;
-          font-size: 14px;
-          color: #333;
-        }
-        
-        .info-header {
-          display: flex;
-          align-items: center;
-          padding: 10px;
-          background: #f5f5f5;
-          border-bottom: 1px solid #ddd;
-          border-radius: 8px 8px 0 0;
-        }
-        
-        .info-icon {
-          margin-right: 8px;
-        }
-        
-        .info-title {
-          flex-grow: 1;
-          font-weight: bold;
-        }
-        
-        .close-btn {
-          cursor: pointer;
-          font-size: 18px;
-        }
-        
-        .info-content {
-          padding: 15px;
-        }
-        
-        #go-to-chrome-settings {
-          background: #4285F4;
-          color: white;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 4px;
-          cursor: pointer;
-          margin-top: 10px;
-        }
-        
-        #go-to-chrome-settings:hover {
-          background: #3367D6;
-        }
-      `;
-      
-      document.head.appendChild(style);
-      document.body.appendChild(infoBox);
-      
-      // 10초 후 자동으로 닫히도록 설정
-      setTimeout(() => {
-        if (document.body.contains(infoBox)) {
-          infoBox.style.opacity = '0';
-          infoBox.style.transition = 'opacity 0.5s ease';
-          setTimeout(() => {
-            if (document.body.contains(infoBox)) {
-              infoBox.remove();
-            }
-          }, 500);
-        }
-      }, 10000);
-    }
-
-    // 북마크 바 초기화 시 Chrome 북마크 바 설정 적용
-    function initBookmarkBar() {
-      console.log('북마크 바 초기화 시작');
-      
-      // Chrome 북마크 숨김 설정 가져오기
-      chrome.storage.sync.get(defaultSettings, (data) => {
-        const settings = data || defaultSettings;
-        
-        // Chrome 북마크 바 숨김 설정 적용
-        if (settings.bookmarkBar && settings.bookmarkBar.hideChrome) {
-          toggleChromeBookmarkBar(true);
-        } else {
-          toggleChromeBookmarkBar(false);
-        }
-        
-        // 북마크 연동 정보 메시지 표시 (초기 설치 시)
-        chrome.storage.local.get(['showSyncInfo'], (data) => {
-          if (data.showSyncInfo !== false) {
-            showBookmarkSyncInfo();
-            // 다음에는 표시하지 않도록 설정
-            chrome.storage.local.set({ showSyncInfo: false });
+            console.error('북마크 삭제 실패:', response);
+            alert(getMessage('deleteBookmarkError'));
           }
         });
-        
-        // 북마크 바 생성 (없는 경우에만)
-        const existingBar = document.getElementById('bookmark-bar');
-        if (!existingBar && document.body) {
-          console.log('북마크 바 생성 (초기화 중)');
-          createBookmarkBar(settings);
-          
-          // MutationObserver 설정 (페이지 변화 감지)
-          setupMutationObserver();
-          
-          // URL 변경 감지 시작
-          startUrlChangeDetection();
-        }
-      });
-    }
-
-    // 사전 초기화 함수
-    function preInit() {
-      // 문서 로드 전에 기본 북마크 바 생성
-      console.log('BookStaxx 사전 초기화 시작');
-
-      // 현재 설정 불러오기 (기본값 사용)
-      chrome.storage.sync.get(defaultSettings, (data) => {
-        // 전역 settings 업데이트
-        settings = data || defaultSettings;
-        
-        // BookmarkCache 객체가 정의되어 있는지 확인
-        if (typeof BookmarkCache !== 'undefined') {
-          BookmarkCache.initCache();
-        } else {
-          console.warn('BookmarkCache 객체가 정의되지 않았습니다. 캐시 초기화를 건너뜁니다.');
-        }
-        
-        // 로딩 시작 시간 기록
-        const startTime = performance.now();
-        
-        // DOM이 완전히 로드되기 전에 북마크 바를 추가하기 위한 함수
-        function appendBarToBody() {
-          if (document.body) {
-            console.log('Body 요소 발견, 북마크 바 추가 시작');
-            
-            // 기존에 있던 북마크 바 제거
-            const existingBar = document.getElementById('bookmark-bar');
-            if (existingBar) {
-              existingBar.remove();
-            }
-
-            // 기본 북마크 바 생성
-            const barPosition = settings.bookmarkBar.position || 'top';
-
-            // 북마크 바 컨테이너 생성
-            const bar = document.createElement('div');
-            bar.id = 'bookmark-bar';
-            bar.className = `${barPosition}`;
-
-            // 북마크 바 스타일 설정
-            bar.style.position = 'fixed';
-            bar.style.zIndex = '2147483647';
-            bar.style.backgroundColor = settings.bookmarkBar.backgroundColor || '#f1f3f4';
-            bar.style.opacity = (settings.bookmarkBar.opacity || 100) / 100;
-            bar.style.display = 'flex';
-            bar.style.transition = 'all 0.3s ease';
-            
-            // 투명 모드 설정
-            if (settings.bookmarkBar.style === 'transparent') {
-              bar.style.backgroundColor = 'transparent';
-              bar.style.boxShadow = 'none';
-            } else if (settings.bookmarkBar.style === 'translucent') {
-              bar.style.backgroundColor = 'rgba(241, 243, 244, 0.8)';
-              bar.style.backdropFilter = 'blur(5px)';
-            }
-
-            // 위치에 따른 스타일 설정
-            if (barPosition === 'top') {
-              bar.style.top = '0';
-              bar.style.left = '0';
-              bar.style.right = '0';
-              bar.style.width = '100%';
-              bar.style.flexDirection = 'row';
-            } else if (barPosition === 'bottom') {
-              bar.style.bottom = '0';
-              bar.style.left = '0';
-              bar.style.right = '0';
-              bar.style.width = '100%';
-              bar.style.flexDirection = 'row';
-            } else if (barPosition === 'left') {
-              bar.style.top = '0';
-              bar.style.left = '0';
-              bar.style.bottom = '0';
-              bar.style.width = 'auto';
-              bar.style.height = '100%';
-              bar.style.flexDirection = 'column';
-              bar.style.minWidth = '40px';
-            } else if (barPosition === 'right') {
-              bar.style.top = '0';
-              bar.style.right = '0';
-              bar.style.bottom = '0';
-              bar.style.width = 'auto';
-              bar.style.minWidth = '40px';
-              bar.style.height = '100%';
-              bar.style.flexDirection = 'column';
-              bar.style.minWidth = '40px';
-            }
-
-            // 북마크 컨테이너 생성
-            const container = document.createElement('div');
-            container.id = 'bookmark-container';
-            container.style.display = 'flex';
-            container.style.flexWrap = 'wrap';
-            container.style.overflow = 'auto';
-            container.style.flex = '1';
-            
-            // 위치에 따른 컨테이너 방향 설정
-            if (barPosition === 'left' || barPosition === 'right') {
-              container.style.flexDirection = 'column';
-              container.style.alignItems = 'center';
-            } else {
-              container.style.flexDirection = 'row';
-              container.style.alignItems = 'center';
-            }
-            
-            // 컨테이너를 바에 추가
-            bar.appendChild(container);
-            
-            // 로딩 메시지 추가
-            const loadingMsg = document.createElement('div');
-            loadingMsg.id = 'bookmark-loading';
-            loadingMsg.textContent = '북마크 로드 중...';
-            loadingMsg.style.padding = '10px';
-            loadingMsg.style.color = settings.bookmarkBar.textColor || '#333333';
-            loadingMsg.style.textAlign = 'center';
-            loadingMsg.style.width = '100%';
-            container.appendChild(loadingMsg);
-
-            // 북마크 바를 body에 추가
-            document.body.appendChild(bar);
-            
-            // Chrome 북마크 바 숨김 설정 적용
-            if (settings.bookmarkBar && settings.bookmarkBar.hideChrome) {
-              toggleChromeBookmarkBar(true);
-            }
-            
-            // 북마크 버튼 생성 및 추가
-            if (settings.bookmarkButton && settings.bookmarkButton.show !== false) {
-              const button = createBookmarkButton(settings);
-              document.body.appendChild(button);
-            }
-            
-            // 캐시된 북마크 데이터가 있으면 즉시 표시
-            let cachedBookmarks = null;
-            if (typeof BookmarkCache !== 'undefined') {
-              cachedBookmarks = BookmarkCache.getBookmarks();
-            }
-            
-            const useCachedIcons = settings.bookmarkBar && settings.bookmarkBar.cacheIcons !== false;
-            
-            if (cachedBookmarks && useCachedIcons) {
-              console.log('캐시된 북마크 데이터 사용 (빠른 로드)');
-              setTimeout(() => {
-                displayBookmarks(cachedBookmarks);
-                
-                // 로딩 시간 측정 및 로그
-                const loadTime = performance.now() - startTime;
-                console.log(`북마크 바 초기 로드 완료: ${loadTime.toFixed(2)}ms`);
-                
-                // 백그라운드에서 최신 데이터 로드
-                setTimeout(() => {
-                  fetchFreshBookmarks();
-                }, 1000);
-              }, 0);
-            } else {
-              // 캐시된 데이터가 없으면 직접 로드
-              fetchFreshBookmarks();
-            }
-            
-            // MutationObserver 설정
-            setupMutationObserver();
-            
-            // URL 변경 감지 시작
-            startUrlChangeDetection();
-            
-            console.log('북마크 바 사전 초기화 완료');
-            
-            // 이벤트 리스너 제거
-            if (document.removeEventListener) {
-              document.removeEventListener('DOMContentLoaded', appendBarToBody);
-            }
-            clearInterval(checkInterval);
-          }
-        }
-
-        // body 요소가 생성되는지 주기적으로 확인
-        const checkInterval = setInterval(appendBarToBody, 10);
-        
-        // DOMContentLoaded 이벤트에도 리스너 추가 (백업)
-        document.addEventListener('DOMContentLoaded', appendBarToBody);
-        
-        // 이미 body가 있으면 즉시 실행
-        if (document.body) {
-          appendBarToBody();
-        }
-      });
-    }
-
-    // 북마크 추가 버튼 생성 함수
-    function createBookmarkButton(settings) {
-      // 설정 확인
-      const buttonSettings = settings.bookmarkButton || {};
-      
-      // 버튼 표시 여부 체크
-      if (buttonSettings.show === false) {
-        // 기존 버튼 제거
-        const existingButton = document.getElementById('add-bookmark-button');
-        if (existingButton) {
-          existingButton.remove();
-        }
-        return null;
-      }
-      
-      // 기존 버튼 확인
-      bookmarkButton = document.getElementById('add-bookmark-button');
-      
-      // 새 버튼 생성
-      if (!bookmarkButton) {
-        bookmarkButton = document.createElement('button');
-        bookmarkButton.id = 'add-bookmark-button';
-        bookmarkButton.className = 'add-bookmark-button';
-        bookmarkButton.title = getMessage('addBookmark');
-        
-        // 클릭 이벤트 리스너
-        bookmarkButton.addEventListener('click', addCurrentPageToBookmarks);
-      }
-      
-      // 버튼 스타일 설정
-      const size = buttonSettings.size || '40px';
-      bookmarkButton.style.position = 'fixed';
-      bookmarkButton.style.zIndex = '2147483646';
-      bookmarkButton.style.width = size;
-      bookmarkButton.style.height = size;
-      bookmarkButton.style.borderRadius = '50%';
-      bookmarkButton.style.cursor = 'pointer';
-      bookmarkButton.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)';
-      bookmarkButton.style.transition = 'all 0.3s ease';
-      bookmarkButton.style.border = 'none';
-      bookmarkButton.style.backgroundColor = buttonSettings.backgroundColor || '#4285F4';
-      bookmarkButton.style.color = buttonSettings.textColor || 'white';
-      bookmarkButton.style.fontSize = parseInt(size) * 0.5 + 'px';
-      bookmarkButton.style.fontWeight = 'bold';
-      
-      // 위치 설정
-      const position = buttonSettings.position || 'bottomRight';
-      const margin = '20px';
-      
-      // 모든 위치 초기화
-      bookmarkButton.style.top = '';
-      bookmarkButton.style.bottom = '';
-      bookmarkButton.style.left = '';
-      bookmarkButton.style.right = '';
-      
-      // 위치별 스타일 적용
-      switch (position) {
-        case 'topLeft':
-          bookmarkButton.style.top = margin;
-          bookmarkButton.style.left = margin;
-          break;
-        case 'topRight':
-          bookmarkButton.style.top = margin;
-          bookmarkButton.style.right = margin;
-          break;
-        case 'bottomLeft':
-          bookmarkButton.style.bottom = margin;
-          bookmarkButton.style.left = margin;
-          break;
-        case 'bottomRight':
-        default:
-          bookmarkButton.style.bottom = margin;
-          bookmarkButton.style.right = margin;
-          break;
-      }
-      
-      // 커스텀 이미지 설정
-      if (buttonSettings.customImage) {
-        bookmarkButton.innerHTML = '';
-        bookmarkButton.style.backgroundImage = `url(${buttonSettings.customImage})`;
-        bookmarkButton.style.backgroundSize = 'cover';
-        bookmarkButton.style.backgroundPosition = 'center';
-      } else {
-        bookmarkButton.innerHTML = '+';
-        bookmarkButton.style.backgroundImage = '';
-      }
-      
-      // 드래그로 위치 조정 기능 추가
-      addDragFunctionality(bookmarkButton);
-      
-      return bookmarkButton;
-    }
-
-    // 드래그 기능 추가 함수
-    function addDragFunctionality(element) {
-      let isDragging = false;
-      let startX, startY;
-      let elementX, elementY;
-      
-      // 요소를 드래그할 수 있도록 설정
-      element.style.cursor = 'move';
-      
-      // 드래그 시작
-      element.addEventListener('mousedown', (e) => {
-        // 좌클릭인 경우에만 드래그 허용 (우클릭 메뉴 방지)
-        if (e.button !== 0) return;
-        
-        e.preventDefault();
-        
-        // 현재 위치 저장
-        startX = e.clientX;
-        startY = e.clientY;
-        
-        // 요소의 현재 위치 가져오기
-        const rect = element.getBoundingClientRect();
-        elementX = rect.left;
-        elementY = rect.top;
-        
-        isDragging = true;
-        
-        // 임시 스타일 적용 (드래그 중 표시)
-        element.style.opacity = '0.8';
-      });
-      
-      // 드래그 중
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        
-        // 이동 거리 계산
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-        
-        // 새 위치 계산
-        const newX = elementX + deltaX;
-        const newY = elementY + deltaY;
-        
-        // 화면 경계 확인 (완전히 화면 밖으로 나가지 않도록)
-        const maxX = window.innerWidth - element.offsetWidth;
-        const maxY = window.innerHeight - element.offsetHeight;
-        
-        const boundedX = Math.max(0, Math.min(newX, maxX));
-        const boundedY = Math.max(0, Math.min(newY, maxY));
-        
-        // 위치 업데이트
-        element.style.left = boundedX + 'px';
-        element.style.top = boundedY + 'px';
-      });
-      
-      // 드래그 종료
-      document.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        
-        isDragging = false;
-        
-        // 스타일 복원
-        element.style.opacity = '1';
-        
-        // 새 위치 저장 (옵션)
-        if (element.id === 'bookmark-button') {
-          const rect = element.getBoundingClientRect();
-          const position = {
-            top: rect.top,
-            left: rect.left
-          };
-          
-          // 설정 업데이트
-          chrome.storage.sync.get(defaultSettings, (data) => {
-            const updatedSettings = { ...data };
-            
-            // 버튼 위치 저장
-            if (!updatedSettings.bookmarkButton) {
-              updatedSettings.bookmarkButton = {};
-            }
-            updatedSettings.bookmarkButton.customPosition = position;
-            
-            // 설정 저장
-            chrome.storage.sync.set(updatedSettings);
-          });
-        }
-      });
-      
-      // 좌표가 이미 저장되어 있다면 적용
-      if (element.id === 'bookmark-button') {
-        chrome.storage.sync.get(defaultSettings, (data) => {
-          if (data.bookmarkButton && data.bookmarkButton.customPosition) {
-            const pos = data.bookmarkButton.customPosition;
-            element.style.top = pos.top + 'px';
-            element.style.left = pos.left + 'px';
-          }
-        });
+      } catch (error) {
+        console.error('북마크 삭제 중 오류 발생:', error);
+        alert(getMessage('deleteBookmarkError'));
       }
     }
-
-    // 전역 객체에 필요한 함수 노출
-    window.BookStaxx.createBookmarkBar = createBookmarkBar;
-    window.BookStaxx.loadBookmarks = loadBookmarks;
-    window.BookStaxx.applySettings = applySettings;
-    window.BookStaxx.initBookmarkBar = initBookmarkBar;
-    window.BookStaxx.createBookmarkButton = createBookmarkButton;
-    
-    // 메시지 리스너 설정
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      // ... existing code ...
-    });
-    
-    // 초기화 함수 호출
-    preInit();
-    
   })();
 }
+
