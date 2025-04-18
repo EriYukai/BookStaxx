@@ -1,16 +1,45 @@
-### Key Points
-- It seems likely that Apple's design philosophy can be adapted into a system prompt for Cursor, an AI coding assistant using Tailwind CSS, to create elegant, minimalistic, and user-friendly app designs.
-- The prompt should emphasize simplicity, clarity, consistency, elegance, functionality, and attention to detail, reflecting Apple's core principles.
-- An unexpected detail is that Apple's proprietary San Francisco font can be used in web designs via system font stacks, enhancing authenticity.
+**Chrome Extension: Enhanced Scroll Button with Bookmarks**
 
-### Apple's Design Philosophy in the Prompt
-Apple's design philosophy, known for its clean and intuitive interfaces, can be effectively integrated into a system prompt for Cursor. The prompt should guide Cursor to use Tailwind CSS to create designs that are simple, clear, and elegant, mirroring Apple's aesthetic. This includes using modern sans-serif fonts like San Francisco, neutral color palettes with accents, and smooth animations for a premium feel.
+**Overview:**  
+This Chrome extension enhances the scroll button by combining standard scrolling with bookmark management and navigation features, providing a seamless browsing experience.
 
-### Technical Implementation with Tailwind CSS
-The prompt should detail how to use Tailwind CSS for typography, color schemes, spacing, components, and animations, ensuring mobile-first, responsive designs. It should also cover performance optimization, such as minimizing unused CSS and lazy loading images, to align with Apple's focus on functionality and detail.
+**Operation:**
 
-### Example and Workflow
-An example, like a button with specific Tailwind classes for rounded corners and hover effects, illustrates how Cursor can implement Apple's style. The workflow should involve analyzing user requests, providing code with explanations, and refining designs based on feedback, ensuring alignment with Apple's standards.
+1. **Scroll Button Click:**  
+   - When the user clicks the scroll button, the extension performs the usual scroll action.  
+   - At the same time, it displays bookmarks from Chrome's bookmark list on both the left and right sides of the clicked point.
+
+2. **Bookmark Display:**  
+   - Bookmarks appear as icons, with their titles shown below each icon.  
+   - This allows users to quickly view and access their saved bookmarks directly from the scroll interaction.
+
+3. **Adding a Bookmark:**  
+   - A "+" icon is displayed on the right side of the clicked point.  
+   - Clicking the "+" icon instantly adds the current page to the user's bookmarks without any prompts or confirmations.
+
+4. **Navigation:**  
+   - A "<-" icon is displayed on the left side of the clicked point.  
+   - Clicking the "<-" icon navigates the browser back to the previous page.
+
+**Usage:**  
+- This extension simplifies bookmark management and navigation by integrating these features into the scroll button.  
+- Users can effortlessly save pages or return to previous ones without leaving their current workflow.
+
+**Note:**  
+- Designed for efficiency and ease of use, this extension offers a streamlined way to interact with bookmarks and browsing history directly through a single click.
+
+---
+
+1.확장프로그램 옵션버튼이있음
+2.초기 확장 프로그램 설치시 기본 북마크에 있는 북마크를 불러 오시겠습니까? 라는 메시지가 뜨고 예를 누르면 연동됨 BOOKSTAXX 라는 폴더안에 있는 확장프로그램 전용 북마크 폴더에 기존 북마크들을 자동으로 붙여넣음
+3.스크롤 버튼이 나오면 애니메이션으로 부드럽게 BOOKSTAXX안에 북마크들을 아이콘화해서 마우스 기준 위치에서 좌우로 스무스 하게 전부 표시하며 북마크의 숫자에 맞게 아이콘 크기 글씨크기를 자동으로 조절해 화면 크기에 맞게 자동으로 배치해줌
+4.스크롤 버튼 누른상태에서 항상 왼쪽에는 뒤로가기 버튼 고정 오른쪽에는 북마크 추가버튼 고정으로 등장하고 해당 버튼을 누르면 해당 액션이 작동함
+5.마우스 기준으로 직선상 위 아래 직각 90방향의 얇은 기둥 안에는 아이콘이 나타나지 않음
+6.옵션에서는 다양한 기능을 조절할수 있음
+7.확장 프로그램 오른쪽 버튼을 누르면 옵션과 기부하기 버튼이 있음
+8.옵션 창 맨 아래에 제작자에게 기부하기 버튼이 있음
+9.기부하기 버튼을 누르면 기부페이지로 이동하고 기부페이지에는 제작의 페이팔 기부버튼과 메세지가 있음
+
 
 ---
 
@@ -117,3 +146,4 @@ This table summarizes how Tailwind CSS can operationalize Apple's principles, en
 - [UI Design Dos and Don’ts - Apple Developer](https://developer.apple.com/design/tips/)
 - [SF Symbols - Apple Developer](https://developer.apple.com/sf-symbols/)
 - [Designing for iOS | Apple Developer Documentation](https://developer.apple.com/design/human-interface-guidelines/designing-for-ios)
+
