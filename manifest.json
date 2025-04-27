@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "BookStaxx",
+  "version": "0.1.0",
+  "description": "Enhanced scroll button with bookmark management and navigation features.",
+  "permissions": [
+    "bookmarks",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["dist/output.css"]
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_title": "BookStaxx Options",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+} 

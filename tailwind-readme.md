@@ -1,66 +1,76 @@
-# BookStaxx에 Tailwind CSS 도입하기
+# BookStaxx: Enhanced Scroll Button with Bookmarks
 
-BookStaxx 크롬 확장 프로그램에 Tailwind CSS를 도입하여 디자인을 현대적이고 일관성 있게 만드는 과정입니다.
+BookStaxx는 마우스 스크롤 버튼 클릭 경험을 향상시키는 Chrome 확장 프로그램입니다. 스크롤 버튼 클릭 시 북마크 목록을 표시하고, 뒤로가기 및 북마크 추가 기능을 빠르게 실행할 수 있습니다. Tailwind CSS를 사용하여 현대적이고 사용자 정의 가능한 인터페이스를 제공합니다.
 
-## 설치된 파일
+## 주요 기능
 
-이 과정에서 다음 파일들이 생성되었습니다:
+*   **스크롤 버튼 북마크 바:** 마우스 가운데 버튼 클릭 시, 클릭 지점 주변에 "BookStaxx" 폴더 내의 북마크들을 아이콘 형태로 표시합니다.
+*   **빠른 액션 버튼:** 북마크 바 좌측에는 항상 뒤로가기 버튼, 우측에는 현재 페이지 북마크 추가 버튼이 표시됩니다.
+*   **동적 UI 조절:**
+    *   북마크 개수에 따라 아이콘/글씨 크기가 자동으로 조절됩니다 (너무 많을 경우 작게 표시).
+    *   화면 크기에 맞춰 북마크 바의 최대 너비가 제한되며, 넘칠 경우 수평 스크롤이 가능합니다.
+    *   마우스 클릭 지점의 수직 영역에는 아이콘이 겹치지 않도록 배치됩니다.
+*   **사용자 설정 (옵션 페이지):**
+    *   북마크 아이콘 크기 (작게/중간/크게)
+    *   북마크 글씨 크기 (작게/중간/크게)
+    *   뒤로가기 / 북마크 추가 버튼 아이콘 커스텀 (이미지 업로드)
+    *   애니메이션 효과 활성화/비활성화
+    *   마우스 커서 아이콘 커스텀 (이미지 또는 .cur 파일 업로드)
+*   **초기 북마크 가져오기:** 확장 프로그램 첫 설치 시, 사용자의 기존 북마크 (북마크바, 기타 북마크 등)를 "BookStaxx" 폴더로 가져올 수 있는 옵션을 제공합니다.
 
-1. **package.json**: npm 프로젝트 설정 및 의존성 관리
-2. **tailwind.config.js**: Tailwind CSS 설정 파일
-3. **src/tailwind.css**: 기본 Tailwind CSS 파일
-4. **build-tailwind.js**: Tailwind CSS 빌드 스크립트
+## 프로젝트 구조
 
-## 적용된 변경사항
-
-1. **HTML 파일 수정**:
-   - `hide-chrome-bar.html`과 `options.html`에 Tailwind CSS 클래스 적용
-   - 모든 인라인 스타일을 Tailwind 유틸리티 클래스로 대체
-
-2. **컴포넌트 정의**:
-   - `src/tailwind.css`에 북마크 관련 컴포넌트 스타일 정의
-   - 자주 사용되는 UI 요소를 재사용 가능한 컴포넌트로 만듦
-
-3. **JavaScript 수정**:
-   - `createBookmarkBar()`, `displayBookmarks()`, `createBookmarkButton()` 함수에 Tailwind 클래스 적용
-   - DOM 요소 생성 시 일관된 스타일링 적용
-
-## 사용 방법
-
-### 개발 시
-
-1. 필요한 패키지 설치:
-   ```bash
-   npm install
-   ```
-
-2. Tailwind CSS 개발 모드 실행:
-   ```bash
-   npm run watch:css
-   ```
-
-3. 코드 변경 후 빌드:
-   ```bash
-   node build-tailwind.js
-   ```
-
-### 프로덕션 빌드
-
-```bash
-npm run build:css
+```
+/BookStaxx
+|-- icons/                  # 확장 프로그램 아이콘 및 기본 파비콘
+|   |-- icon16.png
+|   |-- icon48.png
+|   |-- icon128.png
+|   `-- default_favicon.png
+|-- src/
+|   `-- tailwind.css        # Tailwind 입력 CSS
+|-- dist/
+|   `-- output.css          # 빌드된 Tailwind CSS
+|-- manifest.json           # 확장 프로그램 설정
+|-- package.json            # NPM 패키지 설정
+|-- tailwind.config.js      # Tailwind 설정
+|-- build-tailwind.js       # Tailwind 빌드 스크립트 (Node.js)
+|-- content.js              # 웹 페이지에 삽입되는 주 스크립트 (UI 표시, 이벤트 처리)
+|-- background.js           # 백그라운드 서비스 워커 (북마크 API, 탭 API 등)
+|-- options.html            # 옵션 페이지 HTML
+|-- options.js              # 옵션 페이지 스크립트
+`-- tailwind-readme.md      # 이 파일 (프로젝트 설명 및 빌드 방법)
 ```
 
-## 테마 설정
+## 설치 및 사용 방법
 
-`tailwind.config.js` 파일에서 다음과 같은 테마 설정을 변경할 수 있습니다:
+1.  **저장소 클론 또는 다운로드:** 이 프로젝트 파일을 로컬 컴퓨터에 받습니다.
+2.  **의존성 설치:** 프로젝트 루트 디렉토리에서 터미널을 열고 `npm install` 명령을 실행하여 Tailwind CSS를 설치합니다.
+3.  **CSS 빌드:** `npm run build:css` 명령을 실행하여 `dist/output.css` 파일을 생성합니다.
+4.  **Chrome 확장 프로그램 로드:**
+    *   Chrome 브라우저에서 `chrome://extensions/` 주소로 이동합니다.
+    *   우측 상단의 "개발자 모드"를 활성화합니다.
+    *   "압축해제된 확장 프로그램을 로드합니다" 버튼을 클릭합니다.
+    *   이 프로젝트 폴더 (BookStaxx)를 선택합니다.
+5.  **초기 설정 (첫 설치 시):** 확장 프로그램이 로드되면 자동으로 옵션 페이지가 열립니다. 여기서 기존 북마크를 가져올지 선택할 수 있습니다.
+6.  **사용:** 웹 페이지에서 마우스 가운데 버튼(스크롤 휠)을 클릭하면 북마크 바가 나타납니다.
 
-- **색상**: 북마크 파란색, 어두운 색, 밝은 색, 호버 색상
-- **폰트**: 기본 sans-serif 폰트 패밀리
-- **아이콘 크기**: 작은/중간/큰 아이콘 크기
-- **그림자**: 북마크 요소 및 호버 시 그림자
+## 개발
+
+*   **Tailwind CSS 자동 빌드 (Watch 모드):** 개발 중 CSS 변경사항을 실시간으로 반영하려면 `npm run watch:css` 명령을 실행합니다.
+*   **수동 빌드:** 코드 변경 후에는 `npm run build:css`를 실행하여 `dist/output.css`를 업데이트해야 합니다.
+*   **디버깅:**
+    *   콘텐츠 스크립트 (`content.js`): 웹 페이지의 개발자 도구 (F12) 콘솔 확인
+    *   백그라운드 스크립트 (`background.js`): `chrome://extensions/` 페이지에서 BookStaxx 확장 프로그램의 "서비스 워커" 링크 클릭
+    *   옵션 페이지 (`options.html`, `options.js`): 옵션 페이지에서 F12를 눌러 개발자 도구 콘솔 확인
+
+## 테마 및 커스텀 설정
+
+*   **Tailwind 설정:** `tailwind.config.js` 파일에서 색상 팔레트, 폰트, 간격 등을 수정하여 확장 프로그램의 전체적인 디자인 테마를 변경할 수 있습니다.
+*   **기본 스타일:** `src/tailwind.css` 파일 내 `@layer components` 부분에서 북마크 아이콘, 액션 버튼 등의 기본 스타일을 수정할 수 있습니다.
 
 ## 주의사항
 
-1. 크롬 확장 프로그램에서는 외부 CSS 파일 로드에 제한이 있을 수 있습니다.
-2. 콘텐츠 스크립트에서는 인라인 스타일을 사용하는 것이 더 안정적일 수 있습니다.
-3. `options.html`과 같은 확장 프로그램 페이지에서는 Tailwind CSS를 전체 적용이 가능합니다. 
+*   **아이콘:** `icons` 폴더에 필요한 모든 아이콘 파일 (`icon16.png`, `icon48.png`, `icon128.png`, `default_favicon.png`)이 있어야 정상적으로 작동합니다.
+*   **커스텀 커서:** `.cur` 형식이 아닌 이미지 파일을 커서로 사용할 경우, 브라우저 및 이미지 크기에 따라 지원되지 않거나 모양이 이상하게 보일 수 있습니다.
+*   **북마크 가져오기:** 초기 북마크 가져오기는 기존 북마크를 "BookStaxx" 폴더로 **복사**하는 방식입니다. 원본 북마크는 삭제되지 않습니다. 

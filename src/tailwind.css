@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles or component layers can be added here */
+@layer components {
+  /* Example component style - can be customized later */
+  .bookmark-icon {
+    @apply p-2 rounded-apple bg-light-bg dark:bg-dark-bg shadow-subtle hover:shadow-hover cursor-pointer transition-all duration-200 ease-in-out flex flex-col items-center text-center;
+  }
+  .bookmark-title {
+    @apply text-xs mt-1 text-gray-700 dark:text-gray-300;
+  }
+  .action-button {
+     @apply p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 shadow-subtle hover:shadow-hover cursor-pointer transition-all duration-200 ease-in-out;
+  }
+}
+
+/* Add custom animations */
+@layer utilities {
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes fadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.95); }
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+  .animate-fade-out {
+    animation: fadeOut 0.2s ease-in forwards;
+  }
+} 

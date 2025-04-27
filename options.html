@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookStaxx 옵션</title>
+    <link href="./dist/output.css" rel="stylesheet">
+</head>
+<body class="bg-light-bg dark:bg-dark-bg text-gray-900 dark:text-gray-100 p-6 font-sans">
+
+    <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-apple shadow-subtle">
+        <h1 class="text-2xl font-semibold mb-6 text-center">BookStaxx 설정</h1>
+
+        <!-- 북마크 불러오기 버튼 추가 -->
+        <div class="mb-6 text-center">
+            <button id="show-import-button" type="button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200">
+                북마크 불러오기
+            </button>
+        </div>
+
+        <!-- Initial Import Section (Shown on first load potentially) -->
+        <div id="initial-import-section" class="mb-6 p-4 border border-yellow-300 bg-yellow-50 dark:bg-gray-700 dark:border-yellow-600 rounded-md hidden">
+            <h2 class="text-lg font-semibold mb-3 text-yellow-800 dark:text-yellow-200">북마크 가져오기</h2>
+            <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-3">기존 북마크를 BookStaxx 폴더로 가져오시겠습니까? 가져올 폴더를 선택해주세요.</p>
+            <div id="import-folder-list" class="space-y-2 mb-3">
+                <!-- Checkboxes will be populated by options.js -->
+            </div>
+            <button id="start-import-button" type="button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200">
+                선택한 폴더 가져오기
+            </button>
+            <button id="skip-import-button" type="button" class="ml-2 text-sm text-gray-600 dark:text-gray-400 hover:underline">
+                취소
+            </button>
+            <div id="import-status" class="mt-2 text-sm text-yellow-700 dark:text-yellow-300"></div>
+        </div>
+
+        <form id="options-form" class="space-y-6">
+
+            <!-- 북마크 아이콘 크기 -->
+            <div class="option-group">
+                <label for="bookmarkIconSize" class="block text-sm font-medium mb-2">북마크 아이콘 크기</label>
+                <select id="bookmarkIconSize" name="bookmarkIconSize" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:outline-none focus:ring-bookmark-blue focus:border-bookmark-blue sm:text-sm rounded-md">
+                    <option value="sm">작게</option>
+                    <option value="md">중간</option>
+                    <option value="lg">크게</option>
+                </select>
+            </div>
+
+            <!-- 북마크 글씨 크기 -->
+            <div class="option-group">
+                <label for="bookmarkFontSize" class="block text-sm font-medium mb-2">북마크 글씨 크기</label>
+                <select id="bookmarkFontSize" name="bookmarkFontSize" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:outline-none focus:ring-bookmark-blue focus:border-bookmark-blue sm:text-sm rounded-md">
+                    <option value="xs">작게</option>
+                    <option value="sm">중간</option>
+                    <option value="base">크게</option>
+                </select>
+            </div>
+
+            <!-- 뒤로가기 버튼 아이콘 -->
+            <div class="option-group">
+                <label for="backButtonIcon" class="block text-sm font-medium mb-2">뒤로가기 버튼 아이콘 (업로드)</label>
+                <input type="file" id="backButtonIcon" name="backButtonIcon" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-bookmark-blue file:text-white hover:file:bg-blue-600"/>
+                <span class="text-xs text-gray-500 dark:text-gray-400">선택하지 않으면 기본 '<-' 아이콘 사용</span>
+                 <img id="backButtonPreview" src="#" alt="뒤로가기 아이콘 미리보기" class="mt-2 h-8 w-8 hidden"/>
+            </div>
+
+            <!-- 북마크 추가 버튼 아이콘 -->
+            <div class="option-group">
+                <label for="addButtonIcon" class="block text-sm font-medium mb-2">북마크 추가 버튼 아이콘 (업로드)</label>
+                <input type="file" id="addButtonIcon" name="addButtonIcon" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-bookmark-blue file:text-white hover:file:bg-blue-600"/>
+                <span class="text-xs text-gray-500 dark:text-gray-400">선택하지 않으면 기본 '+' 아이콘 사용</span>
+                <img id="addButtonPreview" src="#" alt="추가 아이콘 미리보기" class="mt-2 h-8 w-8 hidden"/>
+            </div>
+
+            <!-- Animation Toggle -->
+            <div class="flex items-center justify-between mt-4">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">애니메이션 효과 사용</span>
+                <label for="animationEnabled" class="inline-flex relative items-center cursor-pointer">
+                    <input type="checkbox" value="" id="animationEnabled" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <!-- Mouse Cursor Icon -->
+             <div class="mt-6">
+                <label for="mouseCursorIcon" class="block text-sm font-medium text-gray-700 dark:text-gray-300">마우스 커서 아이콘 (업로드)</label>
+                <div class="mt-1 flex items-center">
+                    <input type="file" id="mouseCursorIcon" name="mouseCursorIcon" accept=".png, .jpg, .jpeg, .gif, .cur" class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-blue-300 dark:hover:file:bg-gray-600"/>
+                    <img id="mouseCursorPreview" src="#" alt="Mouse Cursor Preview" class="ml-4 h-6 w-6 hidden"/>
+                </div>
+                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">.cur 형식 권장. 이미지 파일은 크기 조절 필요.</p>
+            </div>
+
+            <!-- 저장 버튼 -->
+            <div class="pt-4">
+                <button type="submit" class="w-full bg-bookmark-blue hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200">
+                    저장
+                </button>
+            </div>
+
+             <!-- 기부 버튼 -->
+            <div class="pt-8 text-center">
+                <a href="#" id="donate-link" class="text-sm text-bookmark-blue hover:underline">
+                    제작자에게 기부하기 (Buy Me a Coffee)
+                </a>
+             </div>
+
+        </form>
+
+        <div id="status" class="mt-4 text-center text-sm text-green-600 dark:text-green-400"></div>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html> 

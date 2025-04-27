@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookStaxx</title>
+    <link href="./dist/output.css" rel="stylesheet">
+    <style>
+        /* Add fixed width and height for the popup */
+        body {
+            width: 200px; /* Adjust width as needed */
+            font-family: sans-serif;
+        }
+        button {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="p-4 bg-light-bg dark:bg-dark-bg">
+    <button id="options-button" class="bg-bookmark-blue hover:bg-blue-600 text-white font-bold rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200">옵션 열기</button>
+    <button id="import-button" class="bg-green-500 hover:bg-green-600 text-white font-bold rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200">북마크 불러오기</button>
+    <button id="donate-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200">기부하기</button>
+    <script src="popup.js"></script>
+</body>
+</html> 

@@ -1,0 +1,13 @@
+{
+  "name": "bookstaxx",
+  "version": "0.1.0",
+  "description": "Chrome extension using Tailwind CSS",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/tailwind.css -o ./dist/output.css --minify",
+    "watch:css": "tailwindcss -i ./src/tailwind.css -o ./dist/output.css --watch",
+    "build:tailwind": "node build-tailwind.js"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.3" 
+  }
+} 
