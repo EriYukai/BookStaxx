@@ -646,7 +646,7 @@ function createBookmarkItem(bookmark, iconSize, fontSize) {
     // 제목 요소
     const title = document.createElement('div');
     title.textContent = bookmark.title || '북마크';
-    title.title = bookmark.title || '북마크'; // 툴팁으로 전체 제목 표시
+    title.title = bookmark.title || '북마크'; // 툴크으로 전체 제목 표시
     title.style.cssText = `
         font-size: ${fontSize}px;
         overflow: hidden;

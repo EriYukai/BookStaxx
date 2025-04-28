@@ -15,45 +15,15 @@ let isInitializing = true;
 let bookmarks = [];
 let bookmarkUsageData = {};
 
-// 서비스 워커 초기화
-async function initializeServiceWorker() {
-  try {
-    console.log("서비스 워커 초기화 중...");
-    await initializeBookStaxx();
-    console.log("서비스 워커 초기화 완료");
-  } catch (error) {
-    console.error("서비스 워커 초기화 실패:", error);
-  }
-}
-
-// 즉시 초기화 실행
-initializeServiceWorker();
-
-// BookStaxx 초기화 함수
-async function initializeBookStaxx() {
-    console.log("BookStaxx 초기화 시작...");
-    
-    try {
-        // 북마크 폴더 검색 또는 생성
-        bookStaxxFolderId = await findOrCreateBookStaxxFolder();
-        console.log(`BookStaxx 폴더 ID: ${bookStaxxFolderId}`);
-        
-        // 북마크 데이터 초기화
-        initializeBookmarks();
-        
-        isInitializing = false;
-        console.log("BookStaxx 초기화 완료");
-        return true;
-    } catch (error) {
-        console.error("BookStaxx 초기화 실패:", error);
-        isInitializing = false;
-        return false;
-    }
-}
-
 // BookStaxx 폴더 검색 또는 생성 함수
 async function findOrCreateBookStaxxFolder() {
     try {
+        // 북마크 API가 준비되었는지 확인
+        if (!chrome || !chrome.bookmarks) {
+            console.error("북마크 API를 사용할 수 없습니다");
+            throw new Error("No SW");
+        }
+
         // 북마크 바 검색
         const bookmarkBar = await chrome.bookmarks.getChildren("1");
         
@@ -79,6 +49,75 @@ async function findOrCreateBookStaxxFolder() {
         throw error;
     }
 }
+
+// BookStaxx 초기화 함수
+async function initializeBookStaxx() {
+    console.log("BookStaxx 초기화 시작...");
+    
+    try {
+        // chrome 객체 확인
+        if (!chrome) {
+            console.error("Chrome API를 사용할 수 없습니다");
+            throw new Error("No SW");
+        }
+
+        // bookmarks API 확인
+        if (!chrome.bookmarks) {
+            console.error("북마크 API를 사용할 수 없습니다");
+            throw new Error("No SW");
+        }
+        
+        // 북마크 폴더 검색 또는 생성
+        bookStaxxFolderId = await findOrCreateBookStaxxFolder();
+        console.log(`BookStaxx 폴더 ID: ${bookStaxxFolderId}`);
+        
+        // 북마크 데이터 초기화
+        initializeBookmarks();
+        
+        isInitializing = false;
+        console.log("BookStaxx 초기화 완료");
+        return true;
+    } catch (error) {
+        console.error("BookStaxx 초기화 실패:", error);
+        isInitializing = false;
+        return false;
+    }
+}
+
+// 서비스 워커 초기화
+async function initializeServiceWorker() {
+    try {
+        console.log("서비스 워커 초기화 중...");
+        
+        // Chrome API 사용 가능 여부 확인
+        if (typeof chrome === 'undefined') {
+            console.error("Chrome API를 사용할 수 없습니다");
+            return;
+        }
+        
+        // 필수 API 확인
+        console.log("Chrome runtime API 가능:", !!chrome.runtime);
+        console.log("Chrome bookmarks API 가능:", !!chrome.bookmarks);
+        console.log("Chrome storage API 가능:", !!chrome.storage);
+        
+        // 서비스 워커 등록 확인
+        if (self && self.registration) {
+            console.log("서비스 워커 등록 상태:", self.registration.active ? "활성" : "비활성");
+        } else {
+            console.warn("서비스 워커 등록 상태를 확인할 수 없습니다");
+        }
+        
+        await initializeBookStaxx();
+        console.log("서비스 워커 초기화 완료");
+    } catch (error) {
+        console.error("서비스 워커 초기화 실패:", error);
+    }
+}
+
+// 즉시 초기화 실행
+initializeServiceWorker().catch(err => {
+    console.error("서비스 워커 초기화 중 오류 발생:", err);
+});
 
 // 확장 프로그램 초기화 시 북마크 데이터 로드
 function initializeBookmarks() {
