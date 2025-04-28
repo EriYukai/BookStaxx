@@ -5,89 +5,178 @@ console.log("Chrome API available:", typeof chrome !== 'undefined');
 console.log("Chrome bookmarks API available:", chrome?.bookmarks !== undefined);
 console.log("BookStaxx background service worker started.");
 
-// Try-catch block around initialization to better diagnose issues
+// 서비스 워커 시작
+console.log("------ BookStaxx 서비스 워커 초기화 시작 -------");
+
+// 전역 변수 정의
 const BOOKSTAXX_FOLDER_NAME = "BookStaxx";
 let bookStaxxFolderId = null;
-let isInitializing = true; // Flag to track initialization status
+let isInitializing = true;
+let bookmarks = [];
+let bookmarkUsageData = {};
 
-// --- Initialization Function ---
-async function initializeBookStaxx() {
-  console.log("Initializing BookStaxx: Finding or creating folder...");
-  isInitializing = true;
+// 서비스 워커 초기화
+async function initializeServiceWorker() {
   try {
-    // 더 철저한 API 사용 가능 여부 체크
-    if (typeof chrome === 'undefined') {
-      throw new Error("Chrome API is not available");
-    }
-    
-    if (!chrome.bookmarks) {
-      throw new Error("Chrome bookmarks API is not available");
-    }
-    
-    // 확장 프로그램 권한 확인 추가
-    if (!chrome.permissions) {
-      console.warn("Permissions API is not available, skipping permission check");
-    } else {
-      try {
-        const hasPermission = await chrome.permissions.contains({permissions: ['bookmarks']});
-        if (!hasPermission) {
-          throw new Error("BookStaxx needs bookmarks permission");
-        }
-        console.log("Bookmarks permission confirmed");
-      } catch (permError) {
-        console.error("Error checking permissions:", permError);
-      }
-    }
-    
-    // 지연 추가하여 API가 완전히 로드될 시간 확보
-    await new Promise(resolve => setTimeout(resolve, 500));
-    console.log("Starting BookStaxx folder search...");
-    
-    const results = await chrome.bookmarks.search({ title: BOOKSTAXX_FOLDER_NAME });
-    console.log("Search results for BookStaxx folder:", results);
-    
-    if (results.length > 0) {
-      bookStaxxFolderId = results[0].id;
-      console.log(`Initialization complete. Found BookStaxx folder ID: ${bookStaxxFolderId}`);
-    } else {
-      console.log("No BookStaxx folder found, creating one...");
-      
-      // 북마크 트리 구조 가져와서 기본 폴더에 생성
-      const tree = await chrome.bookmarks.getTree();
-      const bookmarkBar = tree[0]?.children?.[0]; // 북마크 바
-      
-      if (!bookmarkBar || !bookmarkBar.id) {
-        console.error("Cannot find bookmark bar folder");
-        // 기본 북마크 위치에 생성 시도
-        const newFolder = await chrome.bookmarks.create({ title: BOOKSTAXX_FOLDER_NAME });
-        bookStaxxFolderId = newFolder.id;
-      } else {
-        // 북마크 바에 폴더 생성
-        const newFolder = await chrome.bookmarks.create({ 
-          parentId: bookmarkBar.id,
-          title: BOOKSTAXX_FOLDER_NAME 
-        });
-        bookStaxxFolderId = newFolder.id;
-      }
-      
-      console.log(`Initialization complete. Created BookStaxx folder ID: ${bookStaxxFolderId}`);
-    }
+    console.log("서비스 워커 초기화 중...");
+    await initializeBookStaxx();
+    console.log("서비스 워커 초기화 완료");
   } catch (error) {
-    // 확장된 오류 정보
-    console.error("CRITICAL: Error finding or creating BookStaxx folder during initialization:", error);
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Stack trace:", error.stack);
-    // Keep bookStaxxFolderId as null
-  } finally {
-    isInitializing = false;
-    console.log("BookStaxx initialization finished. Folder ID:", bookStaxxFolderId || "null (not created)");
+    console.error("서비스 워커 초기화 실패:", error);
   }
 }
 
-// 즉시 초기화 시작
-initializeBookStaxx().catch(err => {
-  console.error("Top-level initialization error:", err);
+// 즉시 초기화 실행
+initializeServiceWorker();
+
+// BookStaxx 초기화 함수
+async function initializeBookStaxx() {
+    console.log("BookStaxx 초기화 시작...");
+    
+    try {
+        // 북마크 폴더 검색 또는 생성
+        bookStaxxFolderId = await findOrCreateBookStaxxFolder();
+        console.log(`BookStaxx 폴더 ID: ${bookStaxxFolderId}`);
+        
+        // 북마크 데이터 초기화
+        initializeBookmarks();
+        
+        isInitializing = false;
+        console.log("BookStaxx 초기화 완료");
+        return true;
+    } catch (error) {
+        console.error("BookStaxx 초기화 실패:", error);
+        isInitializing = false;
+        return false;
+    }
+}
+
+// BookStaxx 폴더 검색 또는 생성 함수
+async function findOrCreateBookStaxxFolder() {
+    try {
+        // 북마크 바 검색
+        const bookmarkBar = await chrome.bookmarks.getChildren("1");
+        
+        // BookStaxx 폴더 검색
+        for (const node of bookmarkBar) {
+            if (node.title === BOOKSTAXX_FOLDER_NAME && !node.url) {
+                console.log(`기존 BookStaxx 폴더 발견: ${node.id}`);
+                return node.id;
+            }
+        }
+        
+        // 폴더가 없으면 생성
+        console.log("BookStaxx 폴더를 생성합니다...");
+        const newFolder = await chrome.bookmarks.create({
+            parentId: "1",
+            title: BOOKSTAXX_FOLDER_NAME
+        });
+        
+        console.log(`새 BookStaxx 폴더 생성됨: ${newFolder.id}`);
+        return newFolder.id;
+    } catch (error) {
+        console.error("BookStaxx 폴더 검색/생성 중 오류:", error);
+        throw error;
+    }
+}
+
+// 확장 프로그램 초기화 시 북마크 데이터 로드
+function initializeBookmarks() {
+  console.log('BookStaxx: 북마크 초기화 중...');
+  
+  // 북마크 사용 데이터 로드
+  loadBookmarkUsageData();
+  
+  // 크롬 북마크 데이터 로드
+  chrome.bookmarks.getTree(function(bookmarkTree) {
+    // 북마크 트리를 평면화하여 모든 북마크를 추출
+    bookmarks = flattenBookmarkTree(bookmarkTree);
+    console.log('BookStaxx: 북마크 ' + bookmarks.length + '개 로드됨');
+  });
+}
+
+// 북마크 트리를 평면화하여 모든 북마크 항목 추출
+function flattenBookmarkTree(bookmarkTree) {
+  let bookmarkList = [];
+  
+  function processNode(node) {
+    // 북마크 폴더인 경우 자식 노드 처리
+    if (node.children) {
+      node.children.forEach(processNode);
+    } 
+    // 북마크 항목인 경우 (URL이 있는 경우만 추가)
+    else if (node.url) {
+      bookmarkList.push({
+        id: node.id,
+        title: node.title || '',
+        url: node.url,
+        dateAdded: node.dateAdded
+      });
+    }
+  }
+  
+  // 북마크 트리 처리 시작
+  bookmarkTree.forEach(processNode);
+  return bookmarkList;
+}
+
+// 북마크 사용 데이터 로드
+function loadBookmarkUsageData() {
+  chrome.storage.local.get('bookmarkUsageData', function(result) {
+    if (result.bookmarkUsageData) {
+      bookmarkUsageData = result.bookmarkUsageData;
+      console.log('BookStaxx: 북마크 사용 데이터 로드됨');
+    } else {
+      bookmarkUsageData = {};
+      console.log('BookStaxx: 북마크 사용 데이터가 없음, 새로 생성됨');
+      // 초기 데이터 저장
+      saveBookmarkUsageData();
+    }
+  });
+}
+
+// 북마크 사용 데이터 저장
+function saveBookmarkUsageData() {
+  chrome.storage.local.set({ 'bookmarkUsageData': bookmarkUsageData }, function() {
+    if (chrome.runtime.lastError) {
+      console.error('BookStaxx: 북마크 사용 데이터 저장 실패:', chrome.runtime.lastError);
+    } else {
+      console.log('BookStaxx: 북마크 사용 데이터 저장됨');
+    }
+  });
+}
+
+// 북마크 사용 횟수 증가
+function incrementBookmarkUsage(url) {
+  if (!url) return;
+  
+  // URL이 이미 존재하는지 확인
+  if (!bookmarkUsageData[url]) {
+    bookmarkUsageData[url] = { count: 0, lastUsed: 0 };
+  }
+  
+  // 사용 횟수 증가 및 마지막 사용 시간 업데이트
+  bookmarkUsageData[url].count += 1;
+  bookmarkUsageData[url].lastUsed = Date.now();
+  
+  // 변경된 데이터 저장
+  saveBookmarkUsageData();
+}
+
+// 북마크 변경 이벤트 리스너
+chrome.bookmarks.onCreated.addListener(function(id, bookmark) {
+  console.log('BookStaxx: 북마크 생성됨', bookmark.title);
+  initializeBookmarks(); // 북마크 목록 갱신
+});
+
+chrome.bookmarks.onRemoved.addListener(function(id, removeInfo) {
+  console.log('BookStaxx: 북마크 삭제됨', id);
+  initializeBookmarks(); // 북마크 목록 갱신
+});
+
+chrome.bookmarks.onChanged.addListener(function(id, changeInfo) {
+  console.log('BookStaxx: 북마크 변경됨', id, changeInfo);
+  initializeBookmarks(); // 북마크 목록 갱신
 });
 
 // --- Helper: Get Bookmarks (Moved before listener) ---
@@ -105,7 +194,6 @@ async function getBookmarksFromFolder(folderId) {
         throw error; // Re-throw the error to be caught by the caller
     }
 }
-
 
 // --- Message Listener (Refactored to be async) ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -156,6 +244,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
             const currentTab = tabs[0];
             
+            // 강제 추가 옵션이 있는 경우 (특수 사이트용)
+            if (request.forceAdd && request.url && request.title) {
+              console.log("Using forced bookmark data:", request.url, request.title);
+              try {
+                const newBookmark = await chrome.bookmarks.create({
+                  parentId: bookStaxxFolderId,
+                  title: request.title,
+                  url: request.url
+                });
+                console.log("Bookmark force-added:", newBookmark);
+                sendResponse({ success: true, bookmark: newBookmark });
+                return;
+              } catch (error) {
+                console.error("Error during forced bookmark creation:", error);
+                sendResponse({ success: false, reason: "creation_failed", error: error.message });
+                return;
+              }
+            }
+            
             // 수정된 URL 검증 로직: 더 광범위한 URL 유형 지원
             if (!currentTab.url) {
               console.warn("Attempted to bookmark a page without URL");
@@ -163,13 +270,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               return;
             }
             
-            // chrome:// URL만 차단하고 다른 모든 URL 유형 허용 (네이버, 구글 등)
-            if (currentTab.url.startsWith('chrome://') || 
-                currentTab.url.startsWith('chrome-extension://') || 
-                currentTab.url.startsWith('devtools://')) {
+            // 더 상세한 로깅 추가
+            console.log("Attempting to bookmark tab:", {
+              url: currentTab.url,
+              title: currentTab.title,
+              tabId: currentTab.id,
+              windowId: currentTab.windowId
+            });
+            
+            // 보다 유연한 URL 검증 - 크롬 내부 페이지만 차단하고 나머지는 허용
+            const restrictedPrefixes = ['chrome://', 'chrome-extension://', 'devtools://'];
+            const isRestricted = restrictedPrefixes.some(prefix => currentTab.url.startsWith(prefix));
+            
+            if (isRestricted) {
               console.warn("Attempted to bookmark a restricted browser page:", currentTab.url);
               sendResponse({ success: false, reason: "invalid_page" });
               return;
+            }
+            
+            // URL 유효성 추가 검사
+            try {
+              new URL(currentTab.url); // URL 구문 분석 시도
+            } catch (error) {
+              console.error("Invalid URL format:", currentTab.url, error);
+              // 강제 북마크 추가 시도
+              try {
+                console.log("Attempting alternate bookmark method for:", currentTab.url);
+                const newBookmark = await chrome.bookmarks.create({
+                  parentId: bookStaxxFolderId,
+                  title: currentTab.title || 'Untitled',
+                  url: currentTab.url
+                });
+                console.log("Bookmark force-added with alternate method:", newBookmark);
+                sendResponse({ success: true, bookmark: newBookmark });
+                return;
+              } catch (createError) {
+                console.error("Alternate bookmark method failed:", createError);
+                sendResponse({ success: false, reason: "invalid_url_format", error: error.message });
+                return;
+              }
             }
             
             // 디버그 정보 추가
@@ -276,7 +415,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-
 // --- Helper: Copy Bookmarks Recursive (Moved before listener) ---
 async function copyBookmarksRecursive(sourceFolderId, targetFolderId) {
     let count = 0;
@@ -314,7 +452,6 @@ async function getTopLevelBookmarkFolders() {
     return [];
 }
 
-
 // --- Lifecycle Listeners ---
 chrome.runtime.onInstalled.addListener(async (details) => {
     console.log(`Extension event: ${details.reason}`);
@@ -333,6 +470,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         chrome.runtime.openOptionsPage();
         console.log("Opened options page for initial setup.");
     }
+
+    // 컨텍스트 메뉴 생성
+    chrome.contextMenus.create({
+        id: 'showBookmarkBar',
+        title: 'BookStaxx 북마크 바 열기',
+        contexts: ['page']
+    });
 });
 
 chrome.runtime.onStartup.addListener(async () => {
@@ -350,5 +494,12 @@ chrome.runtime.onStartup.addListener(async () => {
         }
     } catch (error) {
         console.error("Error checking bookmarks count on startup:", error);
+    }
+});
+
+// 컨텍스트 메뉴 클릭 처리
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === 'showBookmarkBar') {
+        chrome.tabs.sendMessage(tab.id, { action: 'showBookmarkBar' });
     }
 }); 

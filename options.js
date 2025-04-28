@@ -220,12 +220,8 @@ function checkShowInitialImport() {
             return;
         }
         
-        // 최초 설치 또는 설정에서 북마크 가져오기를 하지 않은 경우
-        if (!result.importDone) {
-            loadImportFolderList();
-        } else {
-            console.log("Initial import already done or skipped.");
-        }
+        // 항상 폴더 목록 불러오기 (importDone 체크 제거)
+        loadImportFolderList();
     });
 }
 
@@ -327,34 +323,44 @@ function handleStartImport() {
     startImportButton.disabled = true;
     skipImportButton.disabled = true;
 
-    chrome.runtime.sendMessage({ action: "importInitialBookmarks", sourceFolderIds: folderIdsToImport }, (response) => {
-        if (chrome.runtime.lastError) {
-            importStatusDiv.textContent = `오류 발생: ${chrome.runtime.lastError.message}`;
-            importStatusDiv.classList.remove('text-yellow-600');
-            importStatusDiv.classList.add('text-red-600');
-        } else if (response && response.success) {
-            importStatusDiv.textContent = `${response.count}개의 북마크를 가져왔습니다!`;
-            importStatusDiv.classList.remove('text-yellow-600', 'text-red-600');
-            importStatusDiv.classList.add('text-green-600');
-            chrome.storage.local.set({ importDone: true }); // Mark import as done
-            // Hide the section after success
-            setTimeout(() => initialImportSection.classList.add('hidden'), 3000);
-        } else {
-            importStatusDiv.textContent = `가져오기 실패: ${response?.error || '알 수 없는 오류'}`;
-            importStatusDiv.classList.remove('text-yellow-600');
-            importStatusDiv.classList.add('text-red-600');
-        }
-        // Re-enable buttons potentially
-        startImportButton.disabled = false;
-        skipImportButton.disabled = false;
-    });
+    chrome.runtime.sendMessage({ action: "importInitialBookmarks", sourceFolderIds: folderIdsToImport },
+        (response) => {
+            startImportButton.disabled = false;
+            skipImportButton.disabled = false;
+            
+            if (chrome.runtime.lastError) {
+                console.error("북마크 가져오기 오류:", chrome.runtime.lastError);
+                importStatusDiv.textContent = '북마크 가져오기 중 오류 발생: ' + chrome.runtime.lastError.message;
+                importStatusDiv.classList.remove('text-yellow-600');
+                importStatusDiv.classList.add('text-red-600');
+                return;
+            }
+            
+            if (response && response.success) {
+                importStatusDiv.textContent = `북마크 ${response.count}개를 성공적으로 가져왔습니다.`;
+                importStatusDiv.classList.remove('text-yellow-600', 'text-red-600');
+                importStatusDiv.classList.add('text-green-600');
+            } else {
+                importStatusDiv.textContent = '북마크 가져오기 실패: ' + (response?.error || '알 수 없는 오류');
+                importStatusDiv.classList.remove('text-yellow-600');
+                importStatusDiv.classList.add('text-red-600');
+            }
+        });
 }
 
 // Handle skipping the import
-function handleSkipImport() {
-    chrome.storage.local.set({ importDone: true }); // Mark as done/skipped
-    initialImportSection.classList.add('hidden');
-    console.log("Initial import skipped by user.");
+function handleCloseImportSection() {
+    // chrome.storage.local.set({ importDone: true }); // 이 줄 제거 - 더 이상 import 완료로 표시하지 않음
+    
+    // 상태 메시지 비우기
+    importStatusDiv.textContent = '';
+    importStatusDiv.classList.remove('text-red-600', 'text-yellow-600', 'text-green-600');
+    
+    // 버튼 상태 초기화
+    startImportButton.disabled = false;
+    skipImportButton.disabled = false;
+    
+    console.log("Import section closed by user.");
 }
 
 // --- Event Listeners --- 
@@ -362,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     optionsForm.addEventListener('submit', saveOptions);
     setupImportButtonListener(); // 북마크 불러오기 버튼 리스너 설정
     startImportButton.addEventListener('click', handleStartImport);
-    skipImportButton.addEventListener('click', handleSkipImport);
+    skipImportButton.addEventListener('click', handleCloseImportSection);
     
     const donateLink = document.getElementById('donate-link');
     if (donateLink) {
