@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "BookStaxx",
-  "version": "1.0",
-  "description": "자주 사용하는 북마크를 쉽게 액세스할 수 있는 크롬 확장 프로그램",
+  "version": "1.0.0",
+  "description": "웹 페이지에서 빠르게 북마크에 접근할 수 있는 확장 프로그램",
   "permissions": [
-    "storage",
     "bookmarks",
+    "storage",
+    "favicon",
     "tabs",
     "contextMenus"
   ],
@@ -18,7 +19,9 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["contentScript.js"],
+      "css": ["contentStyles.css"],
+      "run_at": "document_end"
     }
   ],
   "action": {
@@ -27,12 +30,19 @@
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
-    }
+    },
+    "default_title": "BookStaxx"
   },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "options_page": "options.html"
+  "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 } 

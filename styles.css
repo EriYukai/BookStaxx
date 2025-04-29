@@ -1,0 +1,327 @@
+/* BookStaxx 스타일시트 */
+
+/* 래퍼 (페이지 전체 커버) */
+.bookstaxx-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2147483646; /* 최대 z-index 값에 가깝게 설정 */
+    pointer-events: none; /* 래퍼 자체는 클릭 이벤트를 무시 */
+}
+
+/* 북마크 바 컨테이너 */
+.bookstaxx-container {
+    position: absolute;
+    width: 400px;
+    max-width: 90%;
+    max-height: 80vh;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    pointer-events: auto; /* 컨테이너는 클릭 이벤트 허용 */
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* 제목 */
+.bookstaxx-title {
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* 닫기 버튼 */
+.bookstaxx-close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #888;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+    z-index: 1;
+}
+
+.bookstaxx-close-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+/* 검색 컨테이너 */
+.bookstaxx-search-container {
+    padding: 10px 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+/* 검색 입력 필드 */
+.bookstaxx-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.bookstaxx-search-input:focus {
+    border-color: #4285f4;
+    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+/* 북마크 목록 컨테이너 */
+.bookstaxx-bookmarks-container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(80vh - 120px);
+    padding: 8px 0;
+}
+
+/* 스크롤바 스타일링 */
+.bookstaxx-bookmarks-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.bookstaxx-bookmarks-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.bookstaxx-bookmarks-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.bookstaxx-bookmarks-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 북마크 항목 */
+.bookstaxx-bookmark {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: background-color 0.1s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    border-radius: 0;
+    position: relative;
+}
+
+.bookstaxx-bookmark:hover {
+    background-color: #f5f5f5;
+}
+
+.bookstaxx-bookmark:active {
+    background-color: #e5e5e5;
+}
+
+/* 북마크 폴더 */
+.bookstaxx-folder {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.1s ease;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bookstaxx-folder::before {
+    content: "▶";
+    display: inline-block;
+    font-size: 10px;
+    margin-right: 8px;
+    color: #666;
+    transition: transform 0.2s ease;
+}
+
+.bookstaxx-folder-open::before {
+    transform: rotate(90deg);
+}
+
+.bookstaxx-folder:hover {
+    background-color: #f5f5f5;
+}
+
+.bookstaxx-folder:active {
+    background-color: #e5e5e5;
+}
+
+/* 폴더 내용 */
+.bookstaxx-folder-content {
+    padding-left: 16px;
+    border-left: 1px solid #e0e0e0;
+    margin-left: 16px;
+}
+
+/* 로딩 메시지 */
+.bookstaxx-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    color: #666;
+    font-style: italic;
+}
+
+/* 오류 메시지 */
+.bookstaxx-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    color: #d32f2f;
+    font-size: 14px;
+    text-align: center;
+}
+
+/* 빈 북마크 메시지 */
+.bookstaxx-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    color: #666;
+    font-style: italic;
+    text-align: center;
+}
+
+/* 검색 결과 없음 메시지 */
+.bookstaxx-no-results {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    color: #666;
+    font-style: italic;
+    text-align: center;
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+    .bookstaxx-container {
+        background-color: #292929;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .bookstaxx-title {
+        background-color: #333;
+        color: #e1e1e1;
+        border-color: #444;
+    }
+    
+    .bookstaxx-bookmark,
+    .bookstaxx-folder {
+        color: #e1e1e1;
+    }
+    
+    .bookstaxx-bookmark:hover,
+    .bookstaxx-folder:hover {
+        background-color: #383838;
+    }
+    
+    .bookstaxx-bookmark:active,
+    .bookstaxx-folder:active {
+        background-color: #444;
+    }
+    
+    .bookstaxx-close-button {
+        color: #aaa;
+    }
+    
+    .bookstaxx-close-button:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #e1e1e1;
+    }
+    
+    .bookstaxx-search-input {
+        background-color: #333;
+        color: #e1e1e1;
+        border-color: #555;
+    }
+    
+    .bookstaxx-search-input:focus {
+        border-color: #4285f4;
+        box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.3);
+    }
+    
+    .bookstaxx-folder-content {
+        border-color: #444;
+    }
+    
+    .bookstaxx-loading,
+    .bookstaxx-empty,
+    .bookstaxx-no-results {
+        color: #999;
+    }
+    
+    .bookstaxx-error {
+        color: #ff6b6b;
+    }
+    
+    .bookstaxx-bookmarks-container::-webkit-scrollbar-track {
+        background: #333;
+    }
+    
+    .bookstaxx-bookmarks-container::-webkit-scrollbar-thumb {
+        background: #555;
+    }
+    
+    .bookstaxx-bookmarks-container::-webkit-scrollbar-thumb:hover {
+        background: #666;
+    }
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+    .bookstaxx-container {
+        max-width: 90%;
+        max-height: 90vh;
+    }
+    
+    .bookstaxx-bookmark,
+    .bookstaxx-folder {
+        padding: 12px 16px;
+        font-size: 16px;
+    }
+    
+    .bookstaxx-search-input {
+        padding: 10px 12px;
+        font-size: 16px;
+    }
+    
+    .bookstaxx-bookmarks-container::-webkit-scrollbar {
+        width: 4px;
+    }
+} 
