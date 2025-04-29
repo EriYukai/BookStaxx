@@ -21,7 +21,15 @@ const iconSizeOrder = ['sm', 'md', 'lg']; // For getEffectiveSize
 const fontSizeOrder = ['xs', 'sm', 'base']; // For getEffectiveSize
 
 // 전역 handleMouseWheel 변수 선언
-let handleMouseWheel = function() {}; // 기본 빈 함수로 초기화
+let handleMouseWheel = function(e) {
+    // 북마크 바가 표시되어 있는 상태에서 휠 스크롤 시 특별한 동작이 필요한 경우
+    if (bookmarkBar) {
+        // 예: 특정 조건에서 북마크 바 닫기
+        // if (e.deltaY > 50) {
+        //     removeBookmarkBar();
+        // }
+    }
+};
 
 // 북마크 바 제거 함수
 function removeBookmarkBar() {
@@ -162,20 +170,9 @@ function createEmptyBookmarkCircle(position) {
     return container;
 }
 
-// 마우스 휠 이벤트 리스너 설정
+// 마우스 휠 이벤트 리스너 설정 함수
 function setupMouseWheelListener() {
     console.log('마우스 휠 이벤트 리스너 설정');
-    
-    // 전역 handleMouseWheel 함수를 새로 정의
-    handleMouseWheel = function(e) {
-        // 북마크 바가 표시되어 있는 상태에서 휠 스크롤 시 특별한 동작이 필요한 경우
-        if (bookmarkBar) {
-            // 예: 특정 조건에서 북마크 바 닫기
-            // if (e.deltaY > 50) {
-            //     removeBookmarkBar();
-            // }
-        }
-    };
     
     // 휠 이벤트 리스너 등록
     document.addEventListener('wheel', handleMouseWheel, { passive: true });
@@ -607,15 +604,26 @@ function createOrUpdateBookmarkBar(bookmarks) {
         
         // 설정 불러오기
         try {
-            chrome.storage.local.get({
+            chrome.storage.sync.get({
                 iconSize: 24,
                 fontSize: 12,
                 animationEnabled: true,
                 maxBookmarks: 20,  // 표시할 최대 북마크 수 증가
                 bookmarkLayoutMode: 'circle',
-                bookmarkAnimationMode: 'explosion'
+                bookmarkAnimationMode: 'shoot'
             }, (settings) => {
-                displayBookmarkIcons(sortedBookmarks, clickCoords);
+                // 애니메이션 모드 변환 (옵션 값을 실제 코드 값으로 매핑)
+                const actualAnimationMode = getActualAnimationMode(settings.bookmarkAnimationMode);
+                
+                console.log(`애니메이션 모드: ${settings.bookmarkAnimationMode} -> ${actualAnimationMode}`);
+                
+                // 변환된 애니메이션 모드로 북마크 표시
+                const displaySettings = {
+                    ...settings,
+                    bookmarkAnimationMode: actualAnimationMode
+                };
+                
+                displayBookmarkIcons(sortedBookmarks, clickCoords, displaySettings);
             });
         } catch (error) {
             console.error('BookStaxx: 설정 로드 중 오류:', error);
@@ -648,11 +656,11 @@ function displayBookmarkIcons(bookmarks, position) {
     chrome.storage.sync.get({
         maxBookmarks: 20,
         bookmarkLayoutMode: 'circle',
-        bookmarkAnimationMode: 'explosion'
+        bookmarkAnimationMode: 'shoot'
     }, (settings) => {
         const maxDisplayCount = settings.maxBookmarks || 20;
         const layoutMode = settings.bookmarkLayoutMode || 'circle';
-        const animationMode = settings.bookmarkAnimationMode || 'explosion';
+        const animationMode = settings.bookmarkAnimationMode || 'shoot';
         
         console.log(`레이아웃 모드: ${layoutMode}, 애니메이션 모드: ${animationMode}, 최대 북마크 수: ${maxDisplayCount}`);
         
@@ -986,7 +994,7 @@ function initialize() {
     }
     
     try {
-        // 마우스 휠 이벤트 설정
+        // 마우스 휠 이벤트 설정 - 가장 먼저 설정
         setupMouseWheelListener();
         
         // 키보드 단축키 설정
@@ -1161,11 +1169,11 @@ function handleInvalidContext() {
 // 이벤트 리스너 및 리소스 정리 함수 - 이제 handleMouseWheel에 접근할 수 있음
 function cleanup() {
     try {
-        // 휠 이벤트 리스너 제거 - 이제 전역에서 접근 가능
-        document.removeEventListener('wheel', handleMouseWheel);
+        // 휠 이벤트 리스너 제거
+        document.removeEventListener('wheel', handleMouseWheel, { passive: true });
         
         // 클릭 이벤트 리스너 제거
-        document.removeEventListener('click', documentClickHandler);
+        document.removeEventListener('mousedown', documentClickHandler);
         
         // 키보드 이벤트 리스너 제거 (구현되어 있다면)
         // document.removeEventListener('keydown', keyboardShortcutHandler);
@@ -1626,11 +1634,11 @@ function displayBookmarkIcons(bookmarks, position) {
     chrome.storage.sync.get({
         maxBookmarks: 30,  // 기본값 증가
         bookmarkLayoutMode: 'circle',
-        bookmarkAnimationMode: 'explosion'
+        bookmarkAnimationMode: 'shoot'
     }, (settings) => {
         const maxDisplayCount = settings.maxBookmarks || 30;  // 기본값 증가
         const layoutMode = settings.bookmarkLayoutMode || 'circle';
-        const animationMode = settings.bookmarkAnimationMode || 'explosion';
+        const animationMode = settings.bookmarkAnimationMode || 'shoot';
         
         console.log(`레이아웃 모드: ${layoutMode}, 애니메이션 모드: ${animationMode}, 최대 북마크 수: ${maxDisplayCount}`);
         
@@ -2856,4 +2864,54 @@ function displayBookmarksFullscreen(container, bookmarks, iconSize, animationMod
         // 북마크 아이콘 생성
         createBookmarkIcon(container, bookmark, x, y, iconSize, index, animationMode);
     });
+}
+
+// 파비콘 저장 요청 시 URL과 북마크 ID 모두 포함하도록 수정
+function saveFaviconForUrl(bookmarkId, url) {
+    if (!bookmarkId || !url) {
+        console.error('파비콘 저장 실패: 북마크 ID나 URL이 없습니다', bookmarkId, url);
+        return Promise.reject(new Error('필수 정보 누락'));
+    }
+    
+    return new Promise((resolve, reject) => {
+        try {
+            chrome.runtime.sendMessage({
+                action: 'saveFavicon',
+                bookmarkId: bookmarkId,
+                url: url
+            }, response => {
+                if (chrome.runtime.lastError) {
+                    console.error('파비콘 저장 요청 오류:', chrome.runtime.lastError);
+                    reject(chrome.runtime.lastError);
+                    return;
+                }
+                
+                if (response && response.success) {
+                    console.log('파비콘 저장 성공');
+                    resolve(response.savedFavIconUrl);
+                } else {
+                    console.warn('파비콘 저장 실패:', response?.error || '알 수 없는 오류');
+                    reject(new Error(response?.error || '파비콘 저장 실패'));
+                }
+            });
+        } catch (error) {
+            console.error('파비콘 저장 요청 중 오류:', error);
+            reject(error);
+        }
+    });
+}
+
+// 기존 북마크 아이콘 생성 함수 내부의 파비콘 저장 부분을 수정
+// 이 함수를 모든 파비콘 저장 요청 부분에 사용하도록 코드를 수정
+
+// 애니메이션 모드 매핑 추가 (옵션 값과 실제 함수 이름 일치)
+const animationModeMap = {
+    'sequence': 'sequential',  // 옵션: 순차적 등장 -> 코드: sequential
+    'shoot': 'explosion',      // 옵션: 발사 -> 코드: explosion
+    'list': 'cascade'          // 옵션: 리스트형 -> 코드: cascade
+};
+
+// 애니메이션 모드 변환 함수
+function getActualAnimationMode(optionMode) {
+    return animationModeMap[optionMode] || optionMode || 'explosion';
 }

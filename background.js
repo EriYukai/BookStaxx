@@ -21,32 +21,42 @@ const FAVICON_STORAGE_PREFIX = 'favicon_';
 // BookStaxx 폴더 검색 또는 생성 함수
 async function findOrCreateBookStaxxFolder() {
     try {
-        // 북마크 API가 준비되었는지 확인
-        if (!chrome || !chrome.bookmarks) {
-            console.error("북마크 API를 사용할 수 없습니다");
-            throw new Error("No SW");
-        }
-
-        // 북마크 바 검색
-        const bookmarkBar = await chrome.bookmarks.getChildren("1");
+        console.log("BookStaxx 폴더 검색/생성 시작...");
         
-        // BookStaxx 폴더 검색
-        for (const node of bookmarkBar) {
-            if (node.title === BOOKSTAXX_FOLDER_NAME && !node.url) {
-                console.log(`기존 BookStaxx 폴더 발견: ${node.id}`);
-                return node.id;
+        // API가 준비될 때까지 약간의 지연 (최대 3번 재시도)
+        for (let attempt = 0; attempt < 3; attempt++) {
+            // 북마크 API가 준비되었는지 확인
+            if (!chrome || !chrome.bookmarks) {
+                console.warn(`북마크 API를 사용할 수 없습니다. 재시도 ${attempt + 1}/3...`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                continue;
             }
+            
+            // 북마크 바 검색
+            const bookmarkBar = await chrome.bookmarks.getChildren("1");
+            
+            // BookStaxx 폴더 검색
+            for (const node of bookmarkBar) {
+                if (node.title === BOOKSTAXX_FOLDER_NAME && !node.url) {
+                    console.log(`기존 BookStaxx 폴더 발견: ${node.id}`);
+                    return node.id;
+                }
+            }
+            
+            // 폴더가 없으면 생성
+            console.log("BookStaxx 폴더를 생성합니다...");
+            const newFolder = await chrome.bookmarks.create({
+                parentId: "1",
+                title: BOOKSTAXX_FOLDER_NAME
+            });
+            
+            console.log(`새 BookStaxx 폴더 생성됨: ${newFolder.id}`);
+            return newFolder.id;
         }
         
-        // 폴더가 없으면 생성
-        console.log("BookStaxx 폴더를 생성합니다...");
-        const newFolder = await chrome.bookmarks.create({
-            parentId: "1",
-            title: BOOKSTAXX_FOLDER_NAME
-        });
-        
-        console.log(`새 BookStaxx 폴더 생성됨: ${newFolder.id}`);
-        return newFolder.id;
+        // 모든 재시도 후에도 API를 사용할 수 없는 경우
+        console.error("3번의 재시도 후에도 북마크 API를 사용할 수 없습니다.");
+        throw new Error("No SW");
     } catch (error) {
         console.error("BookStaxx 폴더 검색/생성 중 오류:", error);
         throw error;
@@ -199,43 +209,63 @@ async function cacheFaviconsForAllBookmarks() {
 async function initializeBookStaxx() {
     console.log("BookStaxx 초기화 시작...");
     
-    try {
-        // chrome 객체 확인
-        if (!chrome) {
-            console.error("Chrome API를 사용할 수 없습니다");
-            throw new Error("No SW");
-        }
+    // 최대 3번 재시도
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            // chrome 객체 확인 전 지연 추가
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // chrome 객체 확인
+            if (!chrome) {
+                console.warn(`Chrome API를 사용할 수 없습니다. 재시도 ${attempt + 1}/3...`);
+                continue;
+            }
 
-        // bookmarks API 확인
-        if (!chrome.bookmarks) {
-            console.error("북마크 API를 사용할 수 없습니다");
-            throw new Error("No SW");
+            // bookmarks API 확인
+            if (!chrome.bookmarks) {
+                console.warn(`북마크 API를 사용할 수 없습니다. 재시도 ${attempt + 1}/3...`);
+                continue;
+            }
+            
+            // 북마크 폴더 검색 또는 생성
+            bookStaxxFolderId = await findOrCreateBookStaxxFolder();
+            console.log(`BookStaxx 폴더 ID: ${bookStaxxFolderId}`);
+            
+            // 북마크 데이터 초기화
+            initializeBookmarks();
+            
+            // 기존 북마크 파비콘 캐싱
+            await cacheFaviconsForAllBookmarks();
+            
+            isInitializing = false;
+            console.log("BookStaxx 초기화 완료");
+            return true;
+        } catch (error) {
+            console.error(`BookStaxx 초기화 시도 ${attempt + 1}/3 실패:`, error);
+            // 마지막 시도가 아니면 계속 진행
+            if (attempt < 2) {
+                await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+                continue;
+            }
+            // 마지막 시도에서 실패한 경우
+            isInitializing = false;
+            return false;
         }
-        
-        // 북마크 폴더 검색 또는 생성
-        bookStaxxFolderId = await findOrCreateBookStaxxFolder();
-        console.log(`BookStaxx 폴더 ID: ${bookStaxxFolderId}`);
-        
-        // 북마크 데이터 초기화
-        initializeBookmarks();
-        
-        // 기존 북마크 파비콘 캐싱
-        await cacheFaviconsForAllBookmarks();
-        
-        isInitializing = false;
-        console.log("BookStaxx 초기화 완료");
-        return true;
-    } catch (error) {
-        console.error("BookStaxx 초기화 실패:", error);
-        isInitializing = false;
-        return false;
     }
+    
+    // 모든 재시도 실패
+    console.error("BookStaxx 초기화 실패: 최대 재시도 횟수 초과");
+    isInitializing = false;
+    return false;
 }
 
 // 서비스 워커 초기화
 async function initializeServiceWorker() {
     try {
         console.log("서비스 워커 초기화 중...");
+        
+        // Chrome API가 준비될 때까지 약간의 지연 추가
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Chrome API 사용 가능 여부 확인
         if (typeof chrome === 'undefined') {
@@ -346,7 +376,7 @@ function incrementBookmarkUsage(url) {
   bookmarkUsageData[url].count += 1;
   bookmarkUsageData[url].lastUsed = Date.now();
   
-  // 변경된 데이터 저장
+ // 변경된 데이터 저장
   saveBookmarkUsageData();
 }
 

@@ -51,10 +51,20 @@ function saveOptions(e) {
     handleFileInput(addButtonIconInput, 'addButtonIcon');
     handleFileInput(mouseCursorIconInput, 'mouseCursorIcon');
     
+    // 아이콘 크기와 폰트 크기가 숫자로 저장되도록 수정
+    const iconSize = bookmarkIconSizeSelect.value;
+    const fontSize = bookmarkFontSizeSelect.value;
+    
+    // px 접미사를 제거하고 숫자만 저장
+    const iconSizeValue = parseInt(iconSize, 10);
+    const fontSizeValue = parseInt(fontSize, 10);
+    
+    console.log(`아이콘 크기: ${iconSizeValue}px, 폰트 크기: ${fontSizeValue}px`);
+    
     // Save settings to chrome.storage.sync
     chrome.storage.sync.set({
-        bookmarkIconSize: bookmarkIconSizeSelect.value,
-        bookmarkFontSize: bookmarkFontSizeSelect.value,
+        bookmarkIconSize: iconSize,
+        bookmarkFontSize: fontSize,
         bookmarkLayoutMode: bookmarkLayoutModeSelect.value,
         bookmarkAnimationMode: bookmarkAnimationModeSelect.value,
         maxBookmarks: parseInt(maxBookmarksInput.value, 10),
@@ -106,7 +116,42 @@ function restoreOptions() {
     });
 }
 
-// Reads a file as a Base64 Data URL
+// 파일 입력 처리 함수 (누락된 함수 추가)
+function handleFileInput(inputElement, storageKey) {
+    if (!inputElement || !inputElement.files || inputElement.files.length === 0) {
+        console.log(`${storageKey}: 선택된 파일 없음`);
+        return;
+    }
+    
+    console.log(`${storageKey} 파일 처리 중...`);
+    const file = inputElement.files[0];
+    
+    // 파일을 Data URL로 읽기
+    readFileAsDataURL(file)
+        .then(dataUrl => {
+            // 로컬 스토리지에 저장
+            chrome.storage.local.set({ [storageKey]: dataUrl }, function() {
+                if (chrome.runtime.lastError) {
+                    console.error(`${storageKey} 저장 오류:`, chrome.runtime.lastError);
+                } else {
+                    console.log(`${storageKey} 저장 완료`);
+                }
+            });
+            
+            // 해당 미리보기 이미지에 설정
+            const previewId = `${storageKey.replace('Icon', '')}Preview`;
+            const previewElement = document.getElementById(previewId);
+            if (previewElement) {
+                previewElement.src = dataUrl;
+                previewElement.classList.remove('hidden');
+            }
+        })
+        .catch(error => {
+            console.error(`${storageKey} 파일 읽기 오류:`, error);
+        });
+}
+
+// 파일을 Base64 Data URL로 읽는 함수 (주석 제거)
 function readFileAsDataURL(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
