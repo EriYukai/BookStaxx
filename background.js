@@ -15,6 +15,9 @@ let isInitializing = true;
 let bookmarks = [];
 let bookmarkUsageData = {};
 
+// 파비콘 스토리지 키 프리픽스
+const FAVICON_STORAGE_PREFIX = 'favicon_';
+
 // BookStaxx 폴더 검색 또는 생성 함수
 async function findOrCreateBookStaxxFolder() {
     try {
@@ -50,6 +53,148 @@ async function findOrCreateBookStaxxFolder() {
     }
 }
 
+// 북마크와 함께 파비콘을 저장하는 함수
+async function saveFaviconForBookmark(bookmarkId, url) {
+    try {
+        if (!url) {
+            console.warn('URL이 제공되지 않아 파비콘을 저장할 수 없습니다.');
+            return null;
+        }
+        
+        // URL에서 도메인 추출
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname;
+        
+        // 파비콘 URL 생성 - 여러 소스를 시도
+        const faviconSources = [
+            // 1. Google의 파비콘 서비스 (높은 해상도)
+            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+            // 2. 도메인에서 직접 가져오기
+            `https://${domain}/favicon.ico`,
+            // 3. 대체 파비콘 서비스
+            `https://icon.horse/icon/${domain}`
+        ];
+        
+        // 각 소스를 순차적으로 시도
+        let faviconData = null;
+        let lastError = null;
+        
+        for (const faviconUrl of faviconSources) {
+            try {
+                console.log(`파비콘 소스 시도: ${faviconUrl}`);
+                
+                // 파비콘 이미지 가져오기
+                const response = await fetch(faviconUrl, { 
+                    method: 'GET',
+                    headers: { 'Accept': 'image/*' },
+                    mode: 'cors',
+                    cache: 'force-cache'
+                });
+                
+                if (!response.ok) {
+                    console.warn(`파비콘 소스 실패 (${response.status}): ${faviconUrl}`);
+                    lastError = new Error(`파비콘 가져오기 실패: ${response.status}`);
+                    continue; // 다음 소스 시도
+                }
+                
+                // Blob으로 변환
+                const blob = await response.blob();
+                
+                // 유효한 이미지인지 확인 (크기가 0이 아닌지)
+                if (blob.size === 0) {
+                    console.warn(`빈 파비콘 이미지: ${faviconUrl}`);
+                    lastError = new Error('빈 파비콘 이미지');
+                    continue; // 다음 소스 시도
+                }
+                
+                // 유효한 이미지 MIME 타입인지 확인
+                if (!blob.type.startsWith('image/')) {
+                    console.warn(`유효하지 않은 이미지 타입: ${blob.type}`);
+                    lastError = new Error(`유효하지 않은 이미지 타입: ${blob.type}`);
+                    continue; // 다음 소스 시도
+                }
+                
+                // Base64로 인코딩
+                const reader = new FileReader();
+                faviconData = await new Promise((resolve, reject) => {
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+                
+                // 성공적으로 가져왔으므로 루프 종료
+                console.log(`파비콘 소스 성공: ${faviconUrl}`);
+                break;
+            } catch (error) {
+                console.warn(`파비콘 가져오기 오류 (${faviconUrl}):`, error);
+                lastError = error;
+                // 계속해서 다음 소스 시도
+            }
+        }
+        
+        // 모든 소스를 시도했지만 성공하지 못한 경우
+        if (!faviconData) {
+            console.error('모든 파비콘 소스가 실패했습니다.', lastError);
+            
+            // 기본 파비콘 사용 - 도메인의 첫 글자를 기반으로 한 컬러 아이콘 생성
+            // 이 부분은 개선될 수 있지만, 현재는 null을 반환하여 content.js가 도메인 첫 글자 기반 아이콘을 생성하도록 함
+            return null;
+        }
+        
+        // 스토리지에 저장
+        const storageKey = `${FAVICON_STORAGE_PREFIX}${bookmarkId}`;
+        await chrome.storage.local.set({ [storageKey]: faviconData });
+        
+        console.log(`북마크 ${bookmarkId}의 파비콘 저장됨: ${domain}`);
+        return faviconData;
+    } catch (error) {
+        console.error('파비콘 저장 중 오류:', error);
+        return null;
+    }
+}
+
+// 저장된 파비콘 가져오기
+async function getSavedFavicon(bookmarkId) {
+    try {
+        const storageKey = `${FAVICON_STORAGE_PREFIX}${bookmarkId}`;
+        const result = await chrome.storage.local.get(storageKey);
+        return result[storageKey] || null;
+    } catch (error) {
+        console.error('저장된 파비콘 가져오기 오류:', error);
+        return null;
+    }
+}
+
+// 기존 북마크에서 파비콘 일괄 저장
+async function cacheFaviconsForAllBookmarks() {
+    try {
+        if (!bookStaxxFolderId) {
+            console.warn('BookStaxx 폴더 ID가 없어 파비콘을 캐싱할 수 없습니다.');
+            return;
+        }
+        
+        // BookStaxx 폴더의 모든 북마크 가져오기
+        const bookmarks = await chrome.bookmarks.getChildren(bookStaxxFolderId);
+        const bookmarksOnly = bookmarks.filter(item => item.url);
+        console.log(`${bookmarksOnly.length}개의 북마크 파비콘 캐싱 시작...`);
+        
+        // 각 북마크에 대해 파비콘 저장
+        const savePromises = bookmarksOnly.map(async (bookmark) => {
+            // 이미 저장된 파비콘이 있는지 확인
+            const existingFavicon = await getSavedFavicon(bookmark.id);
+            if (!existingFavicon && bookmark.url) {
+                return saveFaviconForBookmark(bookmark.id, bookmark.url);
+            }
+            return existingFavicon;
+        });
+        
+        await Promise.all(savePromises);
+        console.log('모든 북마크 파비콘 캐싱 완료');
+    } catch (error) {
+        console.error('북마크 파비콘 캐싱 오류:', error);
+    }
+}
+
 // BookStaxx 초기화 함수
 async function initializeBookStaxx() {
     console.log("BookStaxx 초기화 시작...");
@@ -73,6 +218,9 @@ async function initializeBookStaxx() {
         
         // 북마크 데이터 초기화
         initializeBookmarks();
+        
+        // 기존 북마크 파비콘 캐싱
+        await cacheFaviconsForAllBookmarks();
         
         isInitializing = false;
         console.log("BookStaxx 초기화 완료");
@@ -205,6 +353,10 @@ function incrementBookmarkUsage(url) {
 // 북마크 변경 이벤트 리스너
 chrome.bookmarks.onCreated.addListener(function(id, bookmark) {
   console.log('BookStaxx: 북마크 생성됨', bookmark.title);
+  // 새 북마크에 파비콘 저장
+  if (bookmark.url) {
+    saveFaviconForBookmark(id, bookmark.url);
+  }
   initializeBookmarks(); // 북마크 목록 갱신
 });
 
@@ -270,7 +422,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       switch (request.action) {
         case "getBookmarks":
           const bookmarks = await getBookmarksFromFolder(bookStaxxFolderId);
-          sendResponse({ bookmarks: bookmarks });
+          
+          // 북마크와 함께 저장된 파비콘 데이터 로드
+          const bookmarksWithFavicons = await Promise.all(bookmarks.map(async (bookmark) => {
+            const faviconKey = `favicon_${bookmark.id}`;
+            const result = await new Promise(resolve => {
+              chrome.storage.local.get(faviconKey, resolve);
+            });
+            
+            return {
+              ...bookmark,
+              savedFavIconUrl: result[faviconKey] || null
+            };
+          }));
+          
+          sendResponse({ bookmarks: bookmarksWithFavicons });
           break;
 
         case "addBookmark":
@@ -360,6 +526,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               url: currentTab.url
             });
             console.log("Bookmark added:", newBookmark);
+            
+            // 파비콘 저장 추가
+            await saveFaviconForBookmark(newBookmark.id, currentTab.url);
+            
             sendResponse({ success: true, bookmark: newBookmark });
           } catch (error) {
               // Catch errors during tab query or bookmark creation
@@ -435,6 +605,69 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 sendResponse({ success: false, reason: "folder_fetch_failed", error: error.message });
             }
             break;
+
+        case "openOptions":
+          try {
+            if (chrome.runtime.openOptionsPage) {
+              await chrome.runtime.openOptionsPage();
+              console.log("옵션 페이지 열림");
+              sendResponse({ success: true });
+            } else {
+              // 이전 버전 브라우저를 위한 대체 방법
+              const optionsUrl = chrome.runtime.getURL('options.html');
+              await chrome.tabs.create({ url: optionsUrl });
+              console.log("옵션 페이지 열림 (대체 방법)");
+              sendResponse({ success: true });
+            }
+          } catch (error) {
+            console.error("옵션 페이지 열기 오류:", error);
+            sendResponse({ success: false, reason: "options_failed", error: error.message });
+          }
+          break;
+
+        case "reloadFavicons":
+          await cacheFaviconsForAllBookmarks();
+          sendResponse({ success: true });
+          break;
+
+        case "openBookmark":
+          try {
+            if (!request.url) {
+              throw new Error("북마크 URL이 제공되지 않았습니다.");
+            }
+            
+            console.log("북마크 열기 요청:", request.url);
+            
+            // 새 탭에서 URL 열기
+            const newTab = await chrome.tabs.create({ 
+              url: request.url, 
+              active: true // 새 탭을 즉시 활성화
+            });
+            
+            console.log("북마크가 새 탭에서 열렸습니다:", newTab.id);
+            sendResponse({ success: true, tabId: newTab.id });
+          } catch (error) {
+            console.error("북마크 열기 오류:", error);
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'saveFavicon':
+          try {
+            if (!request.bookmarkId || !request.url) {
+              throw new Error('북마크 ID 또는 URL이 제공되지 않았습니다.');
+            }
+            
+            const savedFavIconUrl = await saveFaviconForBookmark(request.bookmarkId, request.url);
+            sendResponse({ 
+              success: true, 
+              savedFavIconUrl 
+            });
+          } catch (error) {
+            console.error('파비콘 저장 오류:', error);
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
 
         default:
           console.warn(`Unknown action received: ${request.action}`);

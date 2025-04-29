@@ -4,6 +4,9 @@ const statusDiv = document.getElementById('status');
 // Input elements
 const bookmarkIconSizeSelect = document.getElementById('bookmarkIconSize');
 const bookmarkFontSizeSelect = document.getElementById('bookmarkFontSize');
+const bookmarkLayoutModeSelect = document.getElementById('bookmarkLayoutMode');
+const bookmarkAnimationModeSelect = document.getElementById('bookmarkAnimationMode');
+const maxBookmarksInput = document.getElementById('maxBookmarks');
 const backButtonIconInput = document.getElementById('backButtonIcon');
 const addButtonIconInput = document.getElementById('addButtonIcon');
 const animationEnabledCheckbox = document.getElementById('animationEnabled');
@@ -25,146 +28,81 @@ const importStatusDiv = document.getElementById('import-status');
 const showImportButton = document.getElementById('show-import-button');
 
 // Default settings
-const defaultSettings = {
-    bookmarkIconSize: 'md',      // 'sm', 'md', 'lg'
-    bookmarkFontSize: 'sm',      // 'xs', 'sm', 'base'
-    backButtonIcon: null,       // Base64 Data URL or null
-    addButtonIcon: null,        // Base64 Data URL or null
+const DEFAULT_SETTINGS = {
+    bookmarkIconSize: '48',
+    bookmarkFontSize: '14',
+    maxBookmarks: 20,
     animationEnabled: true,
-    mouseCursorIcon: null,      // Base64 Data URL or null
-    // scrollButtonIcon: null, // Currently disabled
+    bookmarkLayoutMode: 'circle',
+    bookmarkAnimationMode: 'shoot',
+    mouseCursorBase64: '',
+    backButtonBase64: '',
+    addButtonBase64: ''
 };
 
 // --- Functions --- 
 
 // Saves options to chrome.storage.sync
-function saveOptions(event) {
-    event.preventDefault();
-    statusDiv.textContent = '저장 중...';
-
-    const settingsToSaveSync = {
+function saveOptions(e) {
+    e.preventDefault();
+    
+    // Handle file inputs (if any)
+    handleFileInput(backButtonIconInput, 'backButtonIcon');
+    handleFileInput(addButtonIconInput, 'addButtonIcon');
+    handleFileInput(mouseCursorIconInput, 'mouseCursorIcon');
+    
+    // Save settings to chrome.storage.sync
+    chrome.storage.sync.set({
         bookmarkIconSize: bookmarkIconSizeSelect.value,
         bookmarkFontSize: bookmarkFontSizeSelect.value,
+        bookmarkLayoutMode: bookmarkLayoutModeSelect.value,
+        bookmarkAnimationMode: bookmarkAnimationModeSelect.value,
+        maxBookmarks: parseInt(maxBookmarksInput.value, 10),
         animationEnabled: animationEnabledCheckbox.checked,
-    };
-    // Image data goes to local storage
-    const settingsToSaveLocal = {};
-
-    // Handle file inputs separately to read them as Data URLs
-    const filePromises = [];
-
-    // Prepare local settings with existing previews first
-    if (backButtonPreview.src.startsWith('data:image')) {
-        settingsToSaveLocal.backButtonIcon = backButtonPreview.src;
-    }
-    if (addButtonPreview.src.startsWith('data:image')) {
-        settingsToSaveLocal.addButtonIcon = addButtonPreview.src;
-    }
-    if (mouseCursorPreview.src.startsWith('data:image')) {
-        settingsToSaveLocal.mouseCursorIcon = mouseCursorPreview.src;
-    }
-
-    if (backButtonIconInput.files && backButtonIconInput.files[0]) {
-        filePromises.push(readFileAsDataURL(backButtonIconInput.files[0]).then(dataUrl => {
-            settingsToSaveLocal.backButtonIcon = dataUrl; // Save to local settings
-            backButtonPreview.src = dataUrl;
-            backButtonPreview.classList.remove('hidden');
-        }));
-    }
-    if (addButtonIconInput.files && addButtonIconInput.files[0]) {
-        filePromises.push(readFileAsDataURL(addButtonIconInput.files[0]).then(dataUrl => {
-            settingsToSaveLocal.addButtonIcon = dataUrl; // Save to local settings
-            addButtonPreview.src = dataUrl;
-            addButtonPreview.classList.remove('hidden');
-        }));
-    }
-    if (mouseCursorIconInput.files && mouseCursorIconInput.files[0]) {
-         filePromises.push(readFileAsDataURL(mouseCursorIconInput.files[0]).then(dataUrl => {
-            settingsToSaveLocal.mouseCursorIcon = dataUrl; // Save to local settings
-             mouseCursorPreview.src = dataUrl; // Show image preview
-            mouseCursorPreview.classList.remove('hidden');
-        }));
-    }
-
-    Promise.all(filePromises).then(() => {
-        let syncError = null;
-        let localError = null;
-
-        const syncPromise = new Promise(resolve => {
-             chrome.storage.sync.set(settingsToSaveSync, () => {
-                syncError = chrome.runtime.lastError;
-                resolve();
-            });
-        });
-
-        const localPromise = new Promise(resolve => {
-            // Only save local if there's something to save
-            if (Object.keys(settingsToSaveLocal).length > 0) {
-                 chrome.storage.local.set(settingsToSaveLocal, () => {
-                    localError = chrome.runtime.lastError;
-                    resolve();
-                });
-            } else {
-                resolve(); // Nothing to save locally
-            }
-        });
-
-        Promise.all([syncPromise, localPromise]).then(() => {
-             const combinedError = syncError || localError;
-             if (combinedError) {
-                 statusDiv.textContent = `저장 오류: ${combinedError.message}`;
-                statusDiv.classList.remove('text-green-600', 'dark:text-green-400');
-                statusDiv.classList.add('text-red-600', 'dark:text-red-400');
-             } else {
-                statusDiv.textContent = '옵션이 저장되었습니다.';
-                statusDiv.classList.remove('text-red-600', 'dark:text-red-400');
-                statusDiv.classList.add('text-green-600', 'dark:text-green-400');
-                setTimeout(() => { statusDiv.textContent = ''; }, 2000);
-             }
-        });
-
-    }).catch(error => {
-         console.error("Error reading files:", error);
-         statusDiv.textContent = '파일 읽기 오류.';
-         statusDiv.classList.remove('text-green-600', 'dark:text-green-400');
-         statusDiv.classList.add('text-red-600', 'dark:text-red-400');
+        mouseCursorBase64: document.getElementById('mouseCursorPreview').src.startsWith('data:') 
+            ? document.getElementById('mouseCursorPreview').src 
+            : '',
+        backButtonBase64: document.getElementById('backButtonPreview').src.startsWith('data:') 
+            ? document.getElementById('backButtonPreview').src 
+            : '',
+        addButtonBase64: document.getElementById('addButtonPreview').src.startsWith('data:') 
+            ? document.getElementById('addButtonPreview').src 
+            : ''
+    }, function() {
+        // Update status to let user know options were saved.
+        const status = document.getElementById('status');
+        status.textContent = '옵션이 저장되었습니다!';
+        setTimeout(function() {
+            status.textContent = '';
+        }, 2000);
     });
 }
 
-// Restores select box and checkbox state using the preferences stored in chrome.storage.
+// Restore options from chrome.storage
 function restoreOptions() {
-    // Get sync settings
-    chrome.storage.sync.get(defaultSettings, (syncItems) => {
-        if (chrome.runtime.lastError) {
-            console.error("Error restoring sync options:", chrome.runtime.lastError.message);
-            // Still try to load local settings
-        } else {
-            bookmarkIconSizeSelect.value = syncItems.bookmarkIconSize;
-            bookmarkFontSizeSelect.value = syncItems.bookmarkFontSize;
-            animationEnabledCheckbox.checked = syncItems.animationEnabled;
-        }
-    });
-
-    // Get local settings (for images)
-    const localKeys = ['backButtonIcon', 'addButtonIcon', 'mouseCursorIcon'];
-    chrome.storage.local.get(localKeys, (localItems) => {
-         if (chrome.runtime.lastError) {
-            console.error("Error restoring local options:", chrome.runtime.lastError.message);
-            return;
-        }
-        // Restore image previews if they exist
-        if (localItems.backButtonIcon) {
-            backButtonPreview.src = localItems.backButtonIcon;
-            backButtonPreview.classList.remove('hidden');
-        }
-        if (localItems.addButtonIcon) {
-            addButtonPreview.src = localItems.addButtonIcon;
-            addButtonPreview.classList.remove('hidden');
-        }
-         if (localItems.mouseCursorIcon) {
-            mouseCursorPreview.src = localItems.mouseCursorIcon;
-            mouseCursorPreview.classList.remove('hidden');
-        }
+    chrome.storage.sync.get(DEFAULT_SETTINGS, (items) => {
+        document.getElementById('bookmarkIconSize').value = items.bookmarkIconSize;
+        document.getElementById('bookmarkFontSize').value = items.bookmarkFontSize;
+        document.getElementById('maxBookmarks').value = items.maxBookmarks;
+        document.getElementById('animationEnabled').checked = items.animationEnabled;
+        document.getElementById('bookmarkLayoutMode').value = items.bookmarkLayoutMode;
+        document.getElementById('bookmarkAnimationMode').value = items.bookmarkAnimationMode;
+        
+        // Restore image previews if available
+        chrome.storage.local.get(['backButtonIcon', 'addButtonIcon', 'mouseCursorIcon'], function(localItems) {
+            if (localItems.backButtonIcon) {
+                backButtonPreview.src = localItems.backButtonIcon;
+                backButtonPreview.classList.remove('hidden');
+            }
+            if (localItems.addButtonIcon) {
+                addButtonPreview.src = localItems.addButtonIcon;
+                addButtonPreview.classList.remove('hidden');
+            }
+            if (localItems.mouseCursorIcon) {
+                mouseCursorPreview.src = localItems.mouseCursorIcon;
+                mouseCursorPreview.classList.remove('hidden');
+            }
+        });
     });
 }
 
