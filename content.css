@@ -1,286 +1,481 @@
-/* BookStaxx 북마크 바 스타일 */
+/* BookStaxx 북마크 바 스타일 - iOS 디자인 시스템 적용 */
 
+:root {
+    /* iOS 스타일 컬러 팔레트 */
+    --ios-blue: #007aff;
+    --ios-green: #34c759;
+    --ios-orange: #ff9500;
+    --ios-red: #ff3b30;
+    --ios-purple: #5e5ce6;
+    --ios-yellow: #ffcc00;
+    
+    /* 다크 모드 배경 */
+    --dark-bg-primary: #000000;
+    --dark-bg-secondary: #1c1c1e;
+    --dark-bg-tertiary: #2c2c2e;
+    --dark-bg-quaternary: #3a3a3c;
+    
+    /* 다크 모드 텍스트 */
+    --dark-text-primary: #ffffff;
+    --dark-text-secondary: rgba(255, 255, 255, 0.8);
+    --dark-text-tertiary: rgba(255, 255, 255, 0.55);
+    
+    /* 라이트 모드 배경 */
+    --light-bg-primary: #ffffff;
+    --light-bg-secondary: #f2f2f7;
+    --light-bg-tertiary: #e5e5ea;
+    --light-bg-quaternary: #d1d1d6;
+    
+    /* 라이트 모드 텍스트 */
+    --light-text-primary: #000000;
+    --light-text-secondary: rgba(0, 0, 0, 0.8);
+    --light-text-tertiary: rgba(0, 0, 0, 0.55);
+    
+    /* 그림자 */
+    --shadow-light: 0 2px 10px rgba(0, 0, 0, 0.1);
+    --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --shadow-dark: 0 6px 20px rgba(0, 0, 0, 0.19);
+    
+    /* 애니메이션 */
+    --animation-duration-short: 0.2s;
+    --animation-duration-medium: 0.3s;
+    --animation-duration-long: 0.5s;
+    
+    /* 디자인 요소 */
+    --border-radius-small: 8px;
+    --border-radius-medium: 12px;
+    --border-radius-large: 16px;
+    --border-radius-full: 9999px;
+}
+
+/* 북마크 바 기본 스타일 */
 .bookstaxx-bookmark-bar {
     position: fixed;
-    z-index: 2147483647; /* 최대 z-index 값 */
-    width: 400px;
-    max-width: 90%;
+    width: 420px;
+    max-width: 90vw;
     max-height: 80vh;
-    background-color: #ffffff;
-    color: #333333;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 2147483647; /* 최대 z-index 값 */
+    box-shadow: var(--shadow-medium);
+    border-radius: var(--border-radius-large);
     overflow: hidden;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', sans-serif;
+    font-size: 15px;
     line-height: 1.4;
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+    transition: opacity var(--animation-duration-medium) cubic-bezier(0.25, 1, 0.5, 1),
+                transform var(--animation-duration-medium) cubic-bezier(0.25, 1, 0.5, 1);
     display: flex;
     flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-/* 가시성 클래스 */
+/* 북마크 바 표시 애니메이션 */
 .bookstaxx-bookmark-bar.visible {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1) translateY(0);
 }
 
-/* 다크 테마 */
-.bookstaxx-bookmark-bar.dark-theme {
-    background-color: #2d2d2d;
-    color: #e0e0e0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+/* 테마 스타일 - 라이트 */
+.bookstaxx-light-theme {
+    background-color: var(--light-bg-primary);
+    color: var(--light-text-primary);
+    border: 1px solid var(--light-bg-tertiary);
+}
+
+/* 테마 스타일 - 다크 */
+.bookstaxx-dark-theme {
+    background-color: var(--dark-bg-primary);
+    color: var(--dark-text-primary);
+    border: 1px solid var(--dark-bg-quaternary);
+}
+
+/* 컨테이너 스타일 */
+.bookstaxx-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-height: 80vh;
+}
+
+/* 헤더 스타일 */
+.bookstaxx-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    position: relative;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+}
+
+.bookstaxx-light-theme .bookstaxx-header {
+    border-bottom-color: var(--light-bg-tertiary);
+}
+
+.bookstaxx-dark-theme .bookstaxx-header {
+    border-bottom-color: var(--dark-bg-tertiary);
 }
 
 /* 제목 스타일 */
 .bookstaxx-title {
-    padding: 12px 16px;
-    font-weight: bold;
-    font-size: 16px;
-    border-bottom: 1px solid #eaeaea;
+    font-size: 18px;
+    font-weight: 600;
+    flex-grow: 1;
     text-align: center;
-}
-
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-title {
-    border-bottom: 1px solid #444444;
-}
-
-/* 컨텍스트 오류 경고 */
-.bookstaxx-context-warning {
-    padding: 6px 12px;
-    background-color: #fff3cd;
-    color: #856404;
-    font-size: 12px;
-    text-align: center;
-    border-bottom: 1px solid #eaeaea;
-}
-
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-context-warning {
-    background-color: #4d3800;
-    color: #ffdb8a;
-    border-bottom: 1px solid #444444;
 }
 
 /* 검색 컨테이너 */
 .bookstaxx-search-container {
     padding: 12px 16px;
-    border-bottom: 1px solid #eaeaea;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+    background-color: transparent;
+    transition: background-color var(--animation-duration-short) ease;
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-search-container {
-    border-bottom: 1px solid #444444;
+.bookstaxx-light-theme .bookstaxx-search-container {
+    border-bottom-color: var(--light-bg-tertiary);
+}
+
+.bookstaxx-dark-theme .bookstaxx-search-container {
+    border-bottom-color: var(--dark-bg-tertiary);
 }
 
 /* 검색 입력 필드 */
 .bookstaxx-search-input {
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 10px 14px;
+    border-radius: var(--border-radius-full);
+    border: none;
+    font-size: 15px;
+    font-family: inherit;
     outline: none;
-    font-size: 14px;
-    background-color: #fff;
-    color: #333;
+    transition: background-color var(--animation-duration-short) ease, 
+                box-shadow var(--animation-duration-short) ease;
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-search-input {
-    background-color: #3d3d3d;
-    color: #e0e0e0;
-    border: 1px solid #555;
+.bookstaxx-light-theme .bookstaxx-search-input {
+    background-color: var(--light-bg-secondary);
+    color: var(--light-text-primary);
+}
+
+.bookstaxx-dark-theme .bookstaxx-search-input {
+    background-color: var(--dark-bg-tertiary);
+    color: var(--dark-text-primary);
 }
 
 .bookstaxx-search-input:focus {
-    border-color: #4d90fe;
-    box-shadow: 0 0 0 2px rgba(77, 144, 254, 0.2);
+    box-shadow: 0 0 0 2px var(--ios-blue);
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-search-input:focus {
-    border-color: #6fa8ff;
-    box-shadow: 0 0 0 2px rgba(111, 168, 255, 0.2);
+.bookstaxx-dark-theme .bookstaxx-search-input:focus {
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.7);
 }
 
 /* 북마크 컨테이너 */
-.bookstaxx-bookmarks-container {
+.bookstaxx-bookmark-container {
+    flex-grow: 1;
     overflow-y: auto;
-    max-height: 60vh;
     padding: 8px 0;
     overscroll-behavior: contain; /* 스크롤 전파 방지 */
-    scrollbar-width: thin;
-    scrollbar-color: #c1c1c1 #f1f1f1;
-}
-
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-bookmarks-container {
-    scrollbar-color: #666 #2d2d2d;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; /* iOS 스크롤 관성 */
 }
 
 /* 스크롤바 스타일 (Chrome, Safari, Edge) */
-.bookstaxx-bookmarks-container::-webkit-scrollbar {
+.bookstaxx-bookmark-container::-webkit-scrollbar {
     width: 8px;
 }
 
-.bookstaxx-bookmarks-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
+.bookstaxx-light-theme .bookstaxx-bookmark-container::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-bookmarks-container::-webkit-scrollbar-track {
-    background: #3d3d3d;
+.bookstaxx-dark-theme .bookstaxx-bookmark-container::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-.bookstaxx-bookmarks-container::-webkit-scrollbar-thumb {
-    background-color: #c1c1c1;
-    border-radius: 4px;
+.bookstaxx-light-theme .bookstaxx-bookmark-container::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: var(--border-radius-full);
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-bookmarks-container::-webkit-scrollbar-thumb {
-    background-color: #666;
+.bookstaxx-dark-theme .bookstaxx-bookmark-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: var(--border-radius-full);
+}
+
+.bookstaxx-light-theme .bookstaxx-bookmark-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.bookstaxx-dark-theme .bookstaxx-bookmark-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 폴더 스타일 */
+.bookstaxx-folder {
+    margin: 2px 0;
+    padding: 0 6px;
+    user-select: none;
+}
+
+.bookstaxx-folder-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    margin: 0 4px;
+    cursor: pointer;
+    border-radius: var(--border-radius-medium);
+    transition: background-color var(--animation-duration-short) ease;
+}
+
+.bookstaxx-light-theme .bookstaxx-folder-header:hover {
+    background-color: var(--light-bg-secondary);
+}
+
+.bookstaxx-dark-theme .bookstaxx-folder-header:hover {
+    background-color: var(--dark-bg-tertiary);
+}
+
+.bookstaxx-folder-header:active {
+    transform: scale(0.98);
+}
+
+.bookstaxx-folder-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    flex-shrink: 0;
+    transition: transform var(--animation-duration-short) ease;
+}
+
+.bookstaxx-light-theme .bookstaxx-folder-icon {
+    color: var(--ios-blue);
+}
+
+.bookstaxx-dark-theme .bookstaxx-folder-icon {
+    color: var(--ios-blue);
+}
+
+.bookstaxx-folder-title {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.bookstaxx-folder-expanded > .bookstaxx-folder-header > .bookstaxx-folder-icon {
+    transform: rotate(90deg);
+}
+
+.bookstaxx-folder-content {
+    padding-left: 22px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--animation-duration-long) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bookstaxx-folder-expanded > .bookstaxx-folder-content {
+    max-height: 1000px;
 }
 
 /* 북마크 항목 */
-.bookstaxx-bookmark-item {
-    padding: 2px 16px;
-}
-
-/* 북마크 링크 */
-.bookstaxx-bookmark-link {
+.bookstaxx-bookmark {
     display: flex;
     align-items: center;
-    padding: 8px 0;
-    color: #333;
-    text-decoration: none;
-    border-radius: 4px;
+    padding: 10px 12px;
+    margin: 2px 4px;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    border-radius: var(--border-radius-medium);
+    transition: background-color var(--animation-duration-short) ease, 
+                transform var(--animation-duration-short) ease;
+}
+
+.bookstaxx-light-theme .bookstaxx-bookmark:hover {
+    background-color: var(--light-bg-secondary);
+}
+
+.bookstaxx-dark-theme .bookstaxx-bookmark:hover {
+    background-color: var(--dark-bg-tertiary);
+}
+
+.bookstaxx-bookmark:active {
+    transform: scale(0.98);
+}
+
+.bookstaxx-favicon-container {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: var(--border-radius-small);
+    overflow: hidden;
+}
+
+.bookstaxx-favicon {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.bookstaxx-bookmark-title {
+    flex-grow: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-bookmark-link {
-    color: #e0e0e0;
-}
-
-.bookstaxx-bookmark-link:hover {
-    background-color: #f5f5f5;
-}
-
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-bookmark-link:hover {
-    background-color: #3d3d3d;
-}
-
-.bookstaxx-bookmark-link:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(77, 144, 254, 0.3);
-    background-color: #f5f5f5;
-}
-
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-bookmark-link:focus {
-    box-shadow: 0 0 0 2px rgba(111, 168, 255, 0.3);
-    background-color: #3d3d3d;
-}
-
-/* 파비콘 */
-.bookstaxx-favicon {
-    width: 16px;
-    height: 16px;
-    margin-right: 10px;
-    flex-shrink: 0;
-}
-
-/* 북마크 제목 */
-.bookstaxx-bookmark-title {
-    flex-grow: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* 북마크 없음 메시지 */
-.bookstaxx-no-bookmarks,
-.bookstaxx-no-results {
-    padding: 16px;
+/* 로딩 및 오류 메시지 */
+.bookstaxx-loading, 
+.bookstaxx-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
     text-align: center;
-    color: #888;
-    font-style: italic;
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-no-bookmarks,
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-no-results {
-    color: #999;
+.bookstaxx-loading-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 12px;
+    border: 3px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
-/* 추가 북마크 메시지 */
-.bookstaxx-more-bookmarks {
-    padding: 8px 16px;
-    text-align: center;
-    color: #888;
-    font-size: 12px;
-    border-top: 1px solid #eaeaea;
+.bookstaxx-light-theme .bookstaxx-loading-icon {
+    border-top-color: var(--ios-blue);
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-more-bookmarks {
-    color: #999;
-    border-top: 1px solid #444444;
+.bookstaxx-dark-theme .bookstaxx-loading-icon {
+    border-top-color: var(--ios-blue);
 }
 
-/* 닫기 버튼 */
-.bookstaxx-close-button {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 24px;
-    height: 24px;
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.bookstaxx-loading-text {
+    font-size: 15px;
+    color: inherit;
+    opacity: 0.7;
+}
+
+.bookstaxx-error {
+    color: var(--ios-red);
+    opacity: 0.8;
+}
+
+/* 액션 버튼 - 뒤로가기 & 북마크 추가 */
+.bookstaxx-action-button {
+    position: fixed;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #888;
-    cursor: pointer;
-    font-size: 20px;
-    font-weight: bold;
     border-radius: 50%;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    cursor: pointer;
+    z-index: 2147483647;
+    box-shadow: var(--shadow-medium);
+    transition: transform var(--animation-duration-short) ease,
+                background-color var(--animation-duration-short) ease;
+    opacity: 0;
+    transform: scale(0.8);
+    animation: scaleIn var(--animation-duration-medium) forwards 0.2s;
 }
 
-.bookstaxx-close-button:hover {
-    background-color: #f1f1f1;
-    color: #555;
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-close-button {
-    color: #aaa;
+.bookstaxx-action-button:hover {
+    transform: scale(1.05);
 }
 
-.bookstaxx-bookmark-bar.dark-theme .bookstaxx-close-button:hover {
-    background-color: #3d3d3d;
-    color: #ddd;
+.bookstaxx-action-button:active {
+    transform: scale(0.95);
 }
 
-/* 모바일 반응형 스타일 */
+.bookstaxx-back-button {
+    background-color: var(--ios-blue);
+    color: white;
+}
+
+.bookstaxx-add-button {
+    background-color: var(--ios-green);
+    color: white;
+}
+
+/* 반응형 디자인 */
 @media (max-width: 576px) {
     .bookstaxx-bookmark-bar {
-        width: 85%;
-        max-width: 350px;
-        max-height: 70vh;
+        width: 90vw;
+        max-height: 75vh;
+        border-radius: var(--border-radius-medium);
+    }
+    
+    .bookstaxx-header {
+        padding: 14px 16px;
     }
     
     .bookstaxx-title {
-        padding: 10px;
-        font-size: 14px;
+        font-size: 17px;
     }
     
     .bookstaxx-search-container {
-        padding: 10px;
+        padding: 10px 12px;
     }
     
     .bookstaxx-search-input {
-        padding: 6px 10px;
+        padding: 8px 12px;
+        font-size: 14px;
     }
     
-    .bookstaxx-bookmarks-container {
-        max-height: 50vh;
+    .bookstaxx-folder-header,
+    .bookstaxx-bookmark {
+        padding: 10px;
     }
     
-    .bookstaxx-bookmark-item {
-        padding: 1px 10px;
+    .bookstaxx-action-button {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* 모션 감소 설정 적용 */
+@media (prefers-reduced-motion) {
+    .bookstaxx-bookmark-bar,
+    .bookstaxx-action-button,
+    .bookstaxx-folder-header,
+    .bookstaxx-bookmark,
+    .bookstaxx-folder-content {
+        transition: none !important;
+        animation: none !important;
+    }
+    
+    .bookstaxx-loading-icon {
+        animation: none !important;
+        border-top-color: transparent;
     }
 } 

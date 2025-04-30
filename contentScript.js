@@ -36,35 +36,58 @@ function createBookmarkBar() {
   const container = document.createElement('div');
   container.className = 'bookstaxx-container';
   
-  // 헤더 (드래그 영역)
+  // 헤더 섹션 생성
   const header = document.createElement('div');
-  header.className = 'bookstaxx-search-container';
+  header.className = 'bookstaxx-header';
   header.style.cursor = 'move';
   
   // 헤더에 드래그 이벤트 추가
   header.addEventListener('mousedown', startDrag);
   
-  // 검색 입력 필드
+  // 제목 요소 생성
+  const title = document.createElement('div');
+  title.className = 'bookstaxx-title';
+  title.textContent = 'BookStaxx';
+  header.appendChild(title);
+  
+  // 검색 컨테이너 생성
+  const searchContainer = document.createElement('div');
+  searchContainer.className = 'bookstaxx-search-container';
+  
+  // 검색 입력 요소 생성
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.className = 'bookstaxx-search-input';
   searchInput.placeholder = '북마크 검색...';
   searchInput.addEventListener('click', (e) => e.stopPropagation());
   searchInput.addEventListener('input', handleSearch);
+  searchContainer.appendChild(searchInput);
   
-  // 북마크 컨테이너
+  // 북마크 컨테이너 생성
   const bookmarkContainer = document.createElement('div');
   bookmarkContainer.className = 'bookstaxx-bookmark-container';
   
-  // 로딩 메시지
-  const loadingMessage = document.createElement('div');
-  loadingMessage.className = 'bookstaxx-loading';
-  loadingMessage.textContent = '북마크 로딩 중...';
-  bookmarkContainer.appendChild(loadingMessage);
+  // 로딩 아이콘과 메시지 생성
+  const loadingContainer = document.createElement('div');
+  loadingContainer.className = 'bookstaxx-loading';
+  
+  // 로딩 아이콘 생성
+  const loadingIcon = document.createElement('div');
+  loadingIcon.className = 'bookstaxx-loading-icon';
+  loadingContainer.appendChild(loadingIcon);
+  
+  // 로딩 텍스트 생성
+  const loadingText = document.createElement('div');
+  loadingText.className = 'bookstaxx-loading-text';
+  loadingText.textContent = '북마크 로딩 중...';
+  loadingContainer.appendChild(loadingText);
+  
+  // 컨테이너에 로딩 메시지 추가
+  bookmarkContainer.appendChild(loadingContainer);
   
   // 요소 조합
-  header.appendChild(searchInput);
   container.appendChild(header);
+  container.appendChild(searchContainer);
   container.appendChild(bookmarkContainer);
   bookmarkBar.appendChild(container);
   
@@ -77,8 +100,27 @@ function createBookmarkBar() {
   // 북마크 바 외부 클릭 감지 설정
   document.addEventListener('click', handleOutsideClick);
   
-  // 북마크 바 표시
-  bookmarkBar.style.visibility = 'visible';
+  // 검색 입력에 포커스
+  setTimeout(() => {
+    searchInput.focus();
+  }, 300);
+  
+  // 북마크 바 표시 (애니메이션 효과)
+  setTimeout(() => {
+    bookmarkBar.classList.add('visible');
+  }, 10);
+  
+  // 뒤로가기 버튼 생성
+  createActionButton('back', (e) => {
+    e.stopPropagation();
+    window.history.back();
+  });
+  
+  // 북마크 추가 버튼 생성
+  createActionButton('add', (e) => {
+    e.stopPropagation();
+    addCurrentPageToBookmarks();
+  });
   
   return bookmarkBar;
 }
@@ -416,4 +458,123 @@ function detectColorScheme() {
 detectColorScheme();
 
 // 다크 모드 변경 감지
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', detectColorScheme); 
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', detectColorScheme);
+
+// 액션 버튼 생성 (뒤로가기, 북마크 추가)
+function createActionButton(type, clickHandler) {
+  const button = document.createElement('div');
+  button.className = `bookstaxx-action-button bookstaxx-${type}-button`;
+  
+  // 클릭 위치를 기준으로 버튼 배치
+  const offset = type === 'back' ? -80 : 80; // 왼쪽/오른쪽 간격 조정
+  
+  // 위치 설정
+  button.style.left = `${clickPosition.x + offset}px`;
+  button.style.top = `${clickPosition.y}px`;
+  
+  // 아이콘 설정
+  const icon = document.createElement('svg');
+  icon.setAttribute('width', '20');
+  icon.setAttribute('height', '20');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('fill', 'none');
+  icon.setAttribute('stroke', 'currentColor');
+  icon.setAttribute('stroke-width', '2');
+  icon.setAttribute('stroke-linecap', 'round');
+  icon.setAttribute('stroke-linejoin', 'round');
+  
+  // 아이콘 타입에 따라 경로 설정
+  if (type === 'back') {
+    icon.innerHTML = '<path d="M19 12H5M12 19l-7-7 7-7"/>';
+  } else if (type === 'add') {
+    icon.innerHTML = '<path d="M12 5v14M5 12h14"/>';
+  }
+  
+  button.appendChild(icon);
+  button.addEventListener('click', clickHandler);
+  
+  // 문서에 추가
+  document.body.appendChild(button);
+  
+  return button;
+}
+
+// 현재 페이지를 북마크에 추가
+function addCurrentPageToBookmarks() {
+  // BookStaxx 폴더에 현재 페이지 추가
+  chrome.runtime.sendMessage({ 
+    action: 'addBookmark',
+    title: document.title,
+    url: window.location.href
+  }, (response) => {
+    if (response && response.success) {
+      // 성공 메시지 표시
+      showNotification('북마크가 추가되었습니다.', 'success');
+    } else {
+      // 실패 메시지 표시
+      showNotification('북마크 추가에 실패했습니다.', 'error');
+    }
+  });
+}
+
+// 알림 메시지 표시
+function showNotification(message, type = 'info') {
+  // 기존 알림 제거
+  const existingNotification = document.querySelector('.bookstaxx-notification');
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+  
+  // 새 알림 생성
+  const notification = document.createElement('div');
+  notification.className = `bookstaxx-notification bookstaxx-notification-${type}`;
+  notification.textContent = message;
+  
+  // 스타일 설정
+  Object.assign(notification.style, {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%) translateY(20px)',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '500',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    zIndex: '2147483647',
+    opacity: '0',
+    transition: 'transform 0.3s ease, opacity 0.3s ease'
+  });
+  
+  // 타입에 따라 스타일 조정
+  if (type === 'success') {
+    notification.style.backgroundColor = '#34c759';
+    notification.style.color = 'white';
+  } else if (type === 'error') {
+    notification.style.backgroundColor = '#ff3b30';
+    notification.style.color = 'white';
+  } else {
+    notification.style.backgroundColor = '#007aff';
+    notification.style.color = 'white';
+  }
+  
+  // 문서에 추가
+  document.body.appendChild(notification);
+  
+  // 애니메이션 표시
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(-50%) translateY(0)';
+  }, 10);
+  
+  // 3초 후 제거
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(-50%) translateY(20px)';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+} 
