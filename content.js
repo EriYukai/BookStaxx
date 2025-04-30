@@ -324,81 +324,86 @@ function toggleBookmarkBar(event) {
 // 새로운 함수: 북마크 아이콘 직접 표시
 function showBookmarkIcons() {
     try {
+        console.log("북마크 아이콘 표시 시작");
+        
         // 기존 요소 모두 제거
         removeAllBookmarkElements();
         
         // 상태 업데이트
         bookmarkBarVisible = true;
         
-        // 뒤로가기 버튼 추가
+        // 화면 크기와 마우스 위치 가져오기
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        const mouseX = clickPosition.x;
+        const mouseY = clickPosition.y;
+        
+        // 버튼 크기 및 여백 설정
+        const buttonSize = 56; // CSS에서 변경됨
+        const buttonMargin = 20;
+        const buttonOffset = 100; // 마우스에서 버튼까지의 거리 증가
+        
+        // 뒤로가기 버튼 생성 및 배치
         const backButton = document.createElement('div');
         backButton.className = 'bookstaxx-action-button bookstaxx-back-button';
         backButton.setAttribute('data-bookstaxx-element', 'true');
         backButton.title = '뒤로 가기';
         backButton.innerHTML = '<svg class="bookstaxx-action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
+        
+        // 뒤로가기 버튼 위치 계산 - 마우스 왼쪽에 배치
+        let backX = mouseX - buttonOffset;
+        let backY = mouseY;
+        
+        // 화면 경계 확인 (왼쪽)
+        if (backX < buttonMargin + buttonSize/2) {
+            backX = buttonMargin + buttonSize/2;
+        }
+        
+        // 상하 경계 확인
+        if (backY < buttonSize/2 + buttonMargin) {
+            backY = buttonSize/2 + buttonMargin;
+        } else if (backY > screenHeight - buttonSize/2 - buttonMargin) {
+            backY = screenHeight - buttonSize/2 - buttonMargin;
+        }
+        
+        // 버튼 위치 설정 (중앙 기준)
+        backButton.style.left = `${backX - buttonSize/2}px`;
+        backButton.style.top = `${backY - buttonSize/2}px`;
+        
+        // 뒤로가기 버튼 이벤트 리스너
         backButton.addEventListener('click', function(event) {
+            console.log("뒤로가기 버튼 클릭");
             window.history.back();
+            removeBookmarkBar();
             event.stopPropagation();
         });
         
-        // 북마크 추가 버튼
+        // 북마크 추가 버튼 생성 및 배치
         const addButton = document.createElement('div');
         addButton.className = 'bookstaxx-action-button bookstaxx-add-button';
         addButton.setAttribute('data-bookstaxx-element', 'true');
         addButton.title = '현재 페이지 북마크 추가';
         addButton.innerHTML = '<svg class="bookstaxx-action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
+        
+        // 북마크 추가 버튼 위치 계산 - 마우스 오른쪽에 배치
+        let addX = mouseX + buttonOffset;
+        let addY = backY; // 뒤로가기 버튼과 같은 높이 유지
+        
+        // 화면 경계 확인 (오른쪽)
+        if (addX > screenWidth - buttonMargin - buttonSize/2) {
+            addX = screenWidth - buttonMargin - buttonSize/2;
+        }
+        
+        // 버튼 위치 설정 (중앙 기준)
+        addButton.style.left = `${addX - buttonSize/2}px`;
+        addButton.style.top = `${backY - buttonSize/2}px`;
+        
+        // 북마크 추가 버튼 이벤트 리스너
         addButton.addEventListener('click', function(event) {
+            console.log("북마크 추가 버튼 클릭");
             addCurrentPageToBookmarks();
             event.stopPropagation();
         });
-        
-        // 화면 크기와 마우스 위치 가져오기
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-        const buttonY = clickPosition.y;
-        
-        // 버튼 위치 계산
-        const buttonSize = 48; // 버튼 크기
-        const buttonMargin = 20; // 화면 경계와의 최소 거리
-        const buttonGap = 40; // 버튼 간격
-        
-        // 뒤로가기 버튼은 마우스 왼쪽에 배치
-        let backButtonX = clickPosition.x - buttonGap - buttonSize/2;
-        let backButtonY = buttonY - buttonSize/2;
-        
-        // 북마크 추가 버튼은 마우스 오른쪽에 배치
-        let addButtonX = clickPosition.x + buttonGap - buttonSize/2;
-        let addButtonY = buttonY - buttonSize/2;
-        
-        // 화면 경계 확인 및 조정
-        // 왼쪽 경계 확인
-        if (backButtonX < buttonMargin) {
-            backButtonX = buttonMargin;
-        }
-        
-        // 오른쪽 경계 확인
-        if (addButtonX + buttonSize > screenWidth - buttonMargin) {
-            addButtonX = screenWidth - buttonSize - buttonMargin;
-        }
-        
-        // 상단 경계 확인
-        if (backButtonY < buttonMargin) {
-            backButtonY = buttonMargin;
-            addButtonY = buttonMargin;
-        }
-        
-        // 하단 경계 확인
-        if (backButtonY + buttonSize > screenHeight - buttonMargin) {
-            backButtonY = screenHeight - buttonSize - buttonMargin;
-            addButtonY = screenHeight - buttonSize - buttonMargin;
-        }
-        
-        // 버튼 위치 설정
-        backButton.style.left = `${backButtonX}px`;
-        backButton.style.top = `${backButtonY}px`;
-        
-        addButton.style.left = `${addButtonX}px`;
-        addButton.style.top = `${addButtonY}px`;
         
         // 버튼을 body에 추가
         document.body.appendChild(backButton);
@@ -412,6 +417,8 @@ function showBookmarkIcons() {
         setTimeout(() => {
             preventAutoClose = false;
         }, 500);
+        
+        console.log("북마크 버튼 위치 - 뒤로가기:", backX, backY, "추가:", addX, addY);
     } catch (error) {
         console.error("북마크 아이콘 표시 중 오류:", error);
         showErrorMessage("북마크 표시 중 오류가 발생했습니다: " + error.message);
@@ -477,7 +484,7 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         const maxBookmarks = currentSettings.maxBookmarks || 20;
         // 배열을 랜덤하게 섞어서 일부만 표시 (최신순 표시를 위해 역순으로 정렬 후 섞기)
         let shuffledBookmarks = [...allBookmarks].reverse().sort(() => Math.random() - 0.5);
-        const bookmarksToDisplay = shuffledBookmarks.slice(0, maxBookmarks);
+        const bookmarksToDisplay = shuffledBookmarks.slice(0, Math.min(maxBookmarks, 12)); // 최대 12개로 제한
         
         // 마우스 위치 및 화면 크기
         const mouseX = clickPosition.x;
@@ -486,7 +493,9 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         const screenHeight = window.innerHeight;
         
         // 배치 각도 계산
-        const angleStep = (2 * Math.PI) / bookmarksToDisplay.length;
+        const totalAngle = 2 * Math.PI * 0.7; // 원 전체의 70%만 사용 (수직 영역 제외)
+        const startAngle = Math.PI / 4; // 45도 시작
+        const angleStep = totalAngle / bookmarksToDisplay.length;
         
         // 각 북마크 배치
         bookmarksToDisplay.forEach((bookmark, index) => {
@@ -494,27 +503,26 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
                 // 아이콘 생성
                 const bookmarkIcon = createBookmarkIcon(bookmark);
                 
-                // 각도 계산 (균등 분포를 위해 인덱스 * 각도 간격)
-                const angle = index * angleStep;
+                // 고유 인덱스 속성 추가 (트래킹용)
+                bookmarkIcon.setAttribute('data-index', index);
                 
-                // 거리 계산 (화면 크기의 15%-35%)
+                // 각도 계산 (균등 분포를 위해 인덱스 * 각도 간격 + 시작 각도)
+                const angle = startAngle + index * angleStep;
+                
+                // 거리 계산 (화면 크기의 15%-25%)
                 const minDistance = Math.min(screenWidth, screenHeight) * 0.15;
-                const maxDistance = Math.min(screenWidth, screenHeight) * 0.35;
+                const maxDistance = Math.min(screenWidth, screenHeight) * 0.25;
                 let distance = minDistance + Math.random() * (maxDistance - minDistance);
                 
-                // 수직 배치 회피 - 일정 각도 범위에 있으면 거리 증가
-                const isVertical = Math.abs(Math.sin(angle)) < 0.3;
-                if (isVertical) {
-                    distance *= 1.5; // 더 멀리 배치
-                }
+                // 수직 영역 회피는 각도 설정으로 대체
                 
                 // 최종 위치 계산
                 const targetX = mouseX + Math.cos(angle) * distance;
                 const targetY = mouseY + Math.sin(angle) * distance;
                 
                 // 화면 경계 확인
-                const finalX = Math.max(50, Math.min(screenWidth - 50, targetX));
-                const finalY = Math.max(50, Math.min(screenHeight - 50, targetY));
+                const finalX = Math.max(70, Math.min(screenWidth - 70, targetX));
+                const finalY = Math.max(70, Math.min(screenHeight - 70, targetY));
                 
                 // 애니메이션 설정
                 setBookmarkAnimation(bookmarkIcon, mouseX, mouseY, finalX, finalY, index);
@@ -529,7 +537,7 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         console.log("북마크 아이콘 표시 완료");
     } catch (error) {
         console.error("북마크 아이콘 직접 표시 중 오류:", error);
-        showErrorMessage("북마크 아이콘을 표시하는 중 오류가 발생했습니다.");
+        showErrorMessage("북마크 아이콘을 표시하는 중 오류가 발생했습니다: " + error.message);
     }
 }
 
@@ -553,14 +561,24 @@ function createBookmarkIcon(bookmark) {
     
     // 기본 파비콘 URL 생성
     try {
-        // URL에서 호스트 추출
+        // URL 파싱 및 안전한 파비콘 URL 생성
         const url = new URL(bookmark.url);
-        favicon.src = `chrome://favicon/size/32@2x/${url.origin}`;
-        favicon.alt = url.hostname;
+        const host = url.hostname;
+        
+        // 파비콘 로드 방법 개선
+        if (url.protocol === 'chrome:' || url.protocol === 'chrome-extension:') {
+            // 크롬 내부 페이지는 기본 아이콘 사용
+            favicon.src = 'icons/default_favicon.png';
+        } else {
+            // 일반 웹사이트는 Google 파비콘 서비스 사용
+            favicon.src = `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
+        }
+        favicon.alt = host;
     } catch (error) {
         // URL 파싱 오류 시 기본 아이콘 사용
         favicon.src = 'icons/default_favicon.png';
         favicon.alt = '웹사이트';
+        console.error("URL 파싱 오류:", error);
     }
     
     // 로드 오류 시 기본 아이콘 사용
@@ -622,28 +640,45 @@ function setBookmarkAnimation(bookmarkIcon, startX, startY, endX, endY, index) {
     bookmarkIcon.style.setProperty('--end-x', `${offsetX}px`);
     bookmarkIcon.style.setProperty('--end-y', `${offsetY}px`);
     
-    // 순차적 애니메이션 적용
+    // 아이콘에 고유 ID 부여 (디버깅 및 참조용)
+    bookmarkIcon.id = `bookstaxx-icon-${Date.now()}-${index}`;
+    
+    // 순차적 애니메이션 적용 (50ms 간격)
     setTimeout(() => {
         bookmarkIcon.classList.add('bookstaxx-animate-shoot');
+        
+        // 애니메이션 완료 후 위치 고정 (관련 버그 방지)
+        setTimeout(() => {
+            if (document.body.contains(bookmarkIcon)) {
+                bookmarkIcon.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+                bookmarkIcon.classList.remove('bookstaxx-animate-shoot');
+            }
+        }, 900); // 애니메이션 시간보다 약간 더 길게
     }, index * 50);
 }
 
 // 애니메이션 스타일 추가 함수
 function addAnimationStyles() {
+    // 이미 존재하는지 확인
     let styleElement = document.getElementById('bookstaxx-animation-styles');
     if (!styleElement) {
+        // 스타일 요소 생성
         styleElement = document.createElement('style');
         styleElement.id = 'bookstaxx-animation-styles';
         document.head.appendChild(styleElement);
     }
     
+    // 방사형 발사 애니메이션 정의
     styleElement.textContent = `
         @keyframes bookstaxx-shoot-out {
             0% {
-                transform: translate(0, 0) scale(0.2);
+                transform: translate(0, 0) scale(0.1);
                 opacity: 0;
             }
-            30% {
+            20% {
+                opacity: 0.5;
+            }
+            40% {
                 opacity: 1;
             }
             100% {
@@ -653,7 +688,20 @@ function addAnimationStyles() {
         }
         
         .bookstaxx-animate-shoot {
-            animation: bookstaxx-shoot-out 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
+            animation: bookstaxx-shoot-out 0.8s cubic-bezier(0.25, 0.1, 0.25, 1.4) forwards;
+            will-change: transform, opacity;
+        }
+        
+        /* 오류 수정을 위한 추가 스타일 */
+        .bookstaxx-bookmark-icon, 
+        .bookstaxx-action-button {
+            pointer-events: auto !important;
+            visibility: visible !important;
+            z-index: 2147483647 !important;
+        }
+        
+        .bookstaxx-action-icon {
+            pointer-events: none;
         }
     `;
 }

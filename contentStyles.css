@@ -259,6 +259,7 @@
     transform: scale(0.95);
 }
 
+/* 북마크 아이콘 이미지 컨테이너 개선 */
 .bookstaxx-bookmark-icon-img {
     display: flex;
     justify-content: center;
@@ -267,14 +268,17 @@
     height: 48px;
     background-color: white;
     border-radius: 50%;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
     overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background-image: linear-gradient(to bottom, #ffffff, #f8f8f8);
 }
 
 .bookstaxx-bookmark-icon-img img {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     object-fit: contain;
+    border-radius: 4px;
 }
 
 .bookstaxx-bookmark-icon-title {
@@ -290,25 +294,27 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
-/* 액션 버튼 스타일 */
+/* 액션 버튼 스타일 개선 */
 .bookstaxx-action-button {
     position: fixed;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    z-index: 2147483646;
+    z-index: 2147483647; /* 최우선 표시 */
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .bookstaxx-back-button {
     background-color: white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
     position: relative;
     overflow: hidden;
+    background-image: linear-gradient(to bottom, #ffffff, #f5f5f5);
 }
 
 .bookstaxx-back-button::after {
@@ -329,9 +335,10 @@
 
 .bookstaxx-add-button {
     background-color: #4285f4;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
     position: relative;
     overflow: hidden;
+    background-image: linear-gradient(to bottom, #4285f4, #3b78e7);
 }
 
 .bookstaxx-add-button::after {
