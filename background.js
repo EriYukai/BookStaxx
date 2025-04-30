@@ -110,9 +110,91 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   
   // 북마크 열기
   if (request.action === "openBookmark") {
-    chrome.tabs.update({ url: request.url });
+    const openInNewTab = request.openInNewTab !== false;
+    const focusNewTab = request.focusNewTab !== false;
+    
+    if (openInNewTab) {
+      chrome.tabs.create({ url: request.url, active: focusNewTab });
+    } else {
+      chrome.tabs.update({ url: request.url });
+    }
+    
     sendResponse({ success: true });
     return true;
+  }
+  
+  // 북마크 추가
+  if (request.action === "addBookmark") {
+    if (!request.url || !request.title) {
+      sendResponse({ success: false, error: "URL과 제목이 필요합니다." });
+      return true;
+    }
+    
+    // BookStaxx 폴더가 초기화되지 않은 경우
+    if (!bookStaxxFolderId) {
+      initBookStaxxFolder().then((folderId) => {
+        // 북마크 추가
+        addBookmarkToFolder(request.title, request.url, function(result) {
+          if (result.success) {
+            sendResponse({ success: true, bookmark: result.bookmark });
+          } else {
+            sendResponse({ success: false, error: result.error });
+          }
+        });
+      }).catch(error => {
+        sendResponse({ success: false, error: "BookStaxx 폴더 초기화 실패: " + error.message });
+      });
+    } else {
+      // 북마크 추가
+      addBookmarkToFolder(request.title, request.url, function(result) {
+        if (result.success) {
+          sendResponse({ success: true, bookmark: result.bookmark });
+        } else {
+          sendResponse({ success: false, error: result.error });
+        }
+      });
+    }
+    
+    return true; // 비동기 응답을 위해 true 반환
+  }
+  
+  // 컨텍스트 유효성 확인을 위한 핑
+  if (request.action === "ping") {
+    console.log("핑 요청 수신됨");
+    sendResponse({ success: true, message: "pong" });
+    return true;
+  }
+  
+  // 설정 가져오기
+  if (request.action === "getSettings") {
+    // 기본 설정
+    const defaultSettings = {
+      activationMethod: 'middleclick',
+      hotkey: 'b',
+      hotkeyModifier: 'alt',
+      openInNewTab: true,
+      focusNewTab: true,
+      autoCloseAfterSelect: true,
+      positionNearClick: true,
+      theme: 'auto',
+      bookmarkIconSize: '48',
+      bookmarkFontSize: '14',
+      maxBookmarks: 20,
+      animationEnabled: true,
+      bookmarkLayoutMode: 'circle',
+      bookmarkAnimationMode: 'shoot'
+    };
+    
+    // 저장된 설정 가져오기
+    chrome.storage.sync.get(defaultSettings, function(settings) {
+      console.log("설정 로드:", settings);
+      sendResponse({ 
+        success: true, 
+        settings: settings 
+      });
+    });
+    
+    return true; // 비동기 응답을 위해 true 반환
   }
   
   // 최상위 북마크 폴더 가져오기
@@ -155,58 +237,65 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     
     let importedCount = 0;
     let processedFolders = 0;
+    let totalBookmarks = 0;
     
     // 각 소스 폴더를 처리
     for (const folderId of request.sourceFolderIds) {
       chrome.bookmarks.getChildren(folderId, function(bookmarks) {
-        for (const bookmark of bookmarks) {
-          if (bookmark.url) {
-            // 북마크를 BookStaxx 폴더에 복사
-            chrome.bookmarks.create({
-              parentId: bookStaxxFolderId,
-              title: bookmark.title,
-              url: bookmark.url
-            }, function() {
-              importedCount++;
+        // URL이 있는 북마크 카운트
+        const bookmarksToImport = bookmarks.filter(bookmark => bookmark.url);
+        totalBookmarks += bookmarksToImport.length;
+        
+        // 북마크 생성 카운터
+        let createdBookmarks = 0;
+        
+        // 폴더에 북마크가 없는 경우 바로 처리 완료로 표시
+        if (bookmarksToImport.length === 0) {
+          processedFolders++;
+          
+          // 모든 폴더 처리 완료 시 응답
+          if (processedFolders === request.sourceFolderIds.length) {
+            sendResponse({ 
+              success: true,
+              count: importedCount
             });
           }
+          return;
         }
         
-        processedFolders++;
-        
-        // 모든 폴더 처리 완료 시 응답
-        if (processedFolders === request.sourceFolderIds.length) {
-          sendResponse({ 
-            success: true,
-            count: importedCount
+        // 각 북마크를 처리
+        for (const bookmark of bookmarksToImport) {
+          // 북마크를 BookStaxx 폴더에 복사
+          chrome.bookmarks.create({
+            parentId: bookStaxxFolderId,
+            title: bookmark.title,
+            url: bookmark.url
+          }, function(newBookmark) {
+            if (chrome.runtime.lastError) {
+              console.error("북마크 생성 실패:", chrome.runtime.lastError, bookmark.url);
+            } else {
+              importedCount++;
+            }
+            
+            createdBookmarks++;
+            
+            // 현재 폴더의 모든 북마크 처리 완료 시
+            if (createdBookmarks === bookmarksToImport.length) {
+              processedFolders++;
+              
+              // 모든 폴더 처리 완료 시 응답
+              if (processedFolders === request.sourceFolderIds.length) {
+                sendResponse({ 
+                  success: true,
+                  count: importedCount
+                });
+              }
+            }
           });
         }
       });
     }
     
-    return true; // 비동기 응답을 위해 true 반환
-  }
-
-  // 북마크 추가 처리
-  if (request.action === "addBookmark") {
-    // BookStaxx 폴더가 초기화되지 않았다면 초기화
-    if (!bookStaxxFolderId) {
-      initBookStaxxFolder()
-        .then(() => {
-          // 초기화 후 북마크 추가
-          addBookmarkToFolder(request.title, request.url, sendResponse);
-        })
-        .catch(error => {
-          console.error("북마크 폴더 초기화 실패:", error);
-          sendResponse({
-            success: false,
-            error: "BookStaxx 폴더를 만들 수 없습니다."
-          });
-        });
-    } else {
-      // 이미 초기화된 경우 바로 북마크 추가
-      addBookmarkToFolder(request.title, request.url, sendResponse);
-    }
     return true; // 비동기 응답을 위해 true 반환
   }
 });

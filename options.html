@@ -12,28 +12,26 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, 'Helvetica Neue', sans-serif;
+            background-color: #202124;
+            color: #e8eaed;
         }
         
         /* 테마 색상 통일 */
         :root {
             --primary-light: #4285f4;
-            --primary-dark: #0f9d58;
-            --text-light: #202124;
+            --primary-dark: #4285f4;
+            --text-light: #e8eaed;
             --text-dark: #e8eaed;
-            --bg-light: #f8f9fa;
+            --bg-light: #202124;
             --bg-dark: #202124;
-            --card-light: #ffffff;
+            --card-light: #303134;
             --card-dark: #303134;
-            --border-light: #dadce0;
+            --border-light: #5f6368;
             --border-dark: #5f6368;
         }
         
         /* 테마에 따른 스타일 적용 */
         .theme-text {
-            color: var(--primary-light);
-        }
-        
-        .dark .theme-text {
             color: var(--primary-dark);
         }
         
@@ -44,21 +42,13 @@
         }
         
         ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 4px;
         }
         
         ::-webkit-scrollbar-thumb {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-        
-        .dark ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        .dark ::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
         }
         
         /* 북마크 폴더 항목 강조 효과 */
@@ -72,10 +62,6 @@
         
         /* 체크박스 커스텀 스타일 */
         input[type="checkbox"] {
-            accent-color: var(--primary-light);
-        }
-        
-        .dark input[type="checkbox"] {
             accent-color: var(--primary-dark);
         }
         
@@ -83,239 +69,490 @@
         .btn {
             transition: all 0.2s ease;
             font-weight: 500;
+            min-width: 110px;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 14px;
+            white-space: nowrap;
         }
         
         .btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        
-        .dark .btn:hover {
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
         }
         
         .btn:active {
             transform: translateY(1px);
         }
+        
+        .btn-primary {
+            background-color: #4285f4;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #3c4043;
+            color: #e8eaed;
+        }
+        
+        .btn-danger {
+            background-color: #ea4335;
+            color: white;
+        }
+        
+        .btn-warning {
+            background-color: #fbbc04;
+            color: #202124;
+        }
+        
+        .btn-success {
+            background-color: #0f9d58;
+            color: white;
+        }
+        
+        /* 이미지 선택 버튼 스타일 개선 */
+        .file-btn {
+            min-width: 110px;
+            display: inline-block;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .file-info {
+            display: inline-block;
+            max-width: 100%;
+            margin-bottom: 8px;
+        }
+        
+        .file-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+            display: inline-block;
+        }
+        
+        .file-selection-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .preview-container {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* 섹션 스타일 개선 */
+        .section-card {
+            background-color: #303134;
+            border: 1px solid #5f6368;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #5f6368;
+            font-size: 18px;
+            font-weight: 600;
+            color: #4285f4;
+        }
+        
+        .section-body {
+            padding: 20px;
+        }
+        
+        /* 버튼 그룹 스타일 */
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        /* 선택 요소 스타일 개선 */
+        select, input[type="number"] {
+            background-color: #3c4043;
+            color: #e8eaed;
+            border: 1px solid #5f6368;
+            border-radius: 8px;
+            padding: 8px 12px;
+            width: 100%;
+            height: 40px;
+        }
+        
+        select:focus, input:focus {
+            border-color: #4285f4;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.25);
+        }
+        
+        /* 북마크 폴더 목록 스타일 개선 */
+        .folder-list {
+            background-color: #202124;
+            border: 1px solid #5f6368;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        @media (min-width: 640px) {
+            .file-selection-container {
+                flex-direction: row;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            
+            .file-btn {
+                margin-right: 12px;
+                margin-bottom: 0;
+            }
+            
+            .file-info {
+                margin-bottom: 0;
+                flex: 1;
+            }
+            
+            .preview-container {
+                margin-top: 0;
+                margin-left: 12px;
+            }
+            
+            .btn-group {
+                flex-wrap: nowrap;
+            }
+        }
+        
+        /* 업로드 버튼과 화살표 이미지 크기 제한 */
+        .img-icon {
+            max-width: 80px;
+            max-height: 80px;
+            width: auto;
+            height: auto;
+        }
+        
+        /* 대형 아이콘 제한 */
+        .large-icon {
+            max-width: 100px;
+            max-height: 100px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        /* 아이콘 컨테이너 제한 */
+        .icon-container {
+            text-align: center;
+            max-width: 250px;
+            max-height: 250px;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+        
+        /* 메인 컨텐츠 영역 스타일 */
+        .main-content {
+            max-width: 100%;
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* 모든 이미지 및 SVG에 대한 크기 제한 */
+        img, svg {
+            max-width: 100px;
+            max-height: 100px;
+            width: auto;
+            height: auto;
+        }
+        
+        /* 북마크 불러오기 페이지 고정 크기 */
+        #initial-import-section {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        /* 모든 아이콘의 크기 제한 */
+        .bookstaxx-icon {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            max-width: 24px;
+            max-height: 24px;
+        }
+        
+        /* 큰 아이콘 컨테이너 */
+        .bookstaxx-upload-container {
+            width: 200px;
+            height: 150px;
+            max-width: 200px;
+            max-height: 150px;
+            overflow: hidden;
+        }
+        
+        /* 닫기 버튼 아이콘 크기 제한 */
+        .btn svg {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            max-width: 20px;
+            max-height: 20px;
+        }
+        
+        /* 모든 SVG 요소의 기본 크기 제한 */
+        svg:not(.btn svg) {
+            max-width: 100px;
+            max-height: 100px;
+        }
+        
+        /* 닫기 버튼 내 SVG 아이콘 수정 */
+        #skip-import-button svg {
+            width: 16px;
+            height: 16px;
+            min-width: 16px;
+            max-width: 16px;
+            max-height: 16px;
+        }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-6">
-    <div class="max-w-3xl mx-auto">
+<body class="bg-gray-900 text-white p-6">
+    <div class="max-w-3xl mx-auto main-content">
         <!-- 헤더 -->
-        <div class="mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
-            <h1 class="text-3xl font-bold text-bookmark-blue dark:text-teal-300">BookStaxx 설정</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-2">빠른 북마크 액세스를 위한 커스터마이징 옵션</p>
+        <div class="mb-8 border-b border-gray-700 pb-4">
+            <h1 class="text-3xl font-bold text-blue-500">BookStaxx 설정</h1>
+            <p class="text-gray-400 mt-2">빠른 북마크 액세스를 위한 커스터마이징 옵션</p>
         </div>
 
         <!-- 초기 불러오기 섹션 -->
-        <div id="initial-import-section" class="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 hidden">
-            <h2 class="text-xl font-semibold mb-3 text-bookmark-blue dark:text-teal-300 flex items-center border-b border-gray-100 dark:border-gray-700 pb-3">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <div id="initial-import-section" class="section-card mb-8 hidden">
+            <div class="section-header flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                 </svg>
                 북마크 가져오기
-            </h2>
-            <p class="mb-4 text-gray-700 dark:text-gray-300">BookStaxx에서 사용할 북마크 폴더를 선택하세요.</p>
-            
-            <!-- 폴더 선택 영역 -->
-            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4 bg-gray-50 dark:bg-gray-850 shadow-inner">
-                <!-- 전체 선택/해제 버튼 -->
-                <div class="flex justify-end mb-2">
-                    <button id="select-all-button" type="button" class="text-sm text-bookmark-blue dark:text-teal-300 mr-3 hover:underline font-medium">전체 선택</button>
-                    <button id="deselect-all-button" type="button" class="text-sm text-gray-600 dark:text-gray-400 hover:underline font-medium">전체 해제</button>
-                </div>
+            </div>
+            <div class="section-body">
+                <p class="mb-4 text-gray-300">BookStaxx에서 사용할 북마크 폴더를 선택하세요.</p>
                 
-                <div id="import-folder-list" class="max-h-60 overflow-y-auto mb-2 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                    <!-- 폴더 체크박스 목록이 여기에 동적으로 추가됩니다 -->
-                    <div class="py-6 text-center text-gray-500 dark:text-gray-400 animate-pulse">
-                        <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                        </svg>
-                        <p class="text-lg">북마크 폴더를 로드 중입니다...</p>
+                <!-- 폴더 선택 영역 -->
+                <div class="border border-gray-700 rounded-lg p-4 mb-4 bg-gray-850 shadow-inner">
+                    <!-- 전체 선택/해제 버튼 -->
+                    <div class="flex justify-end mb-2">
+                        <button id="select-all-button" type="button" class="text-sm text-blue-500 mr-3 hover:underline font-medium">전체 선택</button>
+                        <button id="deselect-all-button" type="button" class="text-sm text-gray-400 hover:underline font-medium">전체 해제</button>
+                    </div>
+                    
+                    <div id="import-folder-list" class="folder-list max-h-60 overflow-y-auto mb-2 p-3">
+                        <!-- 폴더 체크박스 목록이 여기에 동적으로 추가됩니다 -->
+                        <div class="py-6 text-center text-gray-400 animate-pulse">
+                            <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                            </svg>
+                            <p class="text-lg">북마크 폴더를 로드 중입니다...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 선택된 폴더 개수 표시 -->
+                    <div id="selected-folders-count" class="text-sm text-gray-300 mb-2 font-medium">
+                        선택된 폴더: <span class="text-blue-500">0</span>개
                     </div>
                 </div>
                 
-                <!-- 선택된 폴더 개수 표시 -->
-                <div id="selected-folders-count" class="text-sm text-gray-700 dark:text-gray-300 mb-2 font-medium">
-                    선택된 폴더: <span class="text-bookmark-blue dark:text-teal-300">0</span>개
+                <!-- 버튼 그룹 -->
+                <div class="btn-group">
+                    <button id="start-import-button" class="btn btn-primary">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        가져오기 시작
+                    </button>
+                    <button id="skip-import-button" class="btn btn-secondary">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        닫기
+                    </button>
                 </div>
+                
+                <!-- 가져오기 상태 -->
+                <div id="import-status" class="mt-4 p-4 rounded-lg shadow-sm hidden"></div>
             </div>
-            
-            <!-- 버튼 그룹 -->
-            <div class="flex flex-wrap gap-3">
-                <button id="start-import-button" class="btn bg-bookmark-blue hover:bg-blue-600 dark:bg-teal-600 dark:hover:bg-teal-500 text-white px-5 py-2 rounded-md flex items-center shadow-sm">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                    </svg>
-                    가져오기 시작
-                </button>
-                <button id="skip-import-button" class="btn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-5 py-2 rounded-md flex items-center shadow-sm">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    닫기
-                </button>
-            </div>
-            
-            <!-- 가져오기 상태 -->
-            <div id="import-status" class="mt-4 p-4 rounded-lg shadow-sm hidden"></div>
         </div>
 
         <!-- 메인 설정 폼 -->
-        <form id="options-form" class="grid gap-8">
+        <form id="options-form" class="grid gap-6">
             
             <!-- 북마크 표시 설정 섹션 -->
-            <section class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-bookmark-blue dark:text-teal-300 border-b border-gray-100 dark:border-gray-700 pb-3">북마크 표시 설정</h2>
-                
-                <div class="grid gap-5 sm:grid-cols-2">
-                    <!-- 아이콘 크기 -->
-                    <div>
-                        <label for="bookmarkIconSize" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">아이콘 크기</label>
-                        <select id="bookmarkIconSize" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-bookmark-blue dark:focus:ring-teal-500">
-                            <option value="32">작게 (32px)</option>
-                            <option value="48">중간 (48px)</option>
-                            <option value="64">크게 (64px)</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">북마크 아이콘의 크기를 설정합니다.</p>
-                    </div>
-                    
-                    <!-- 폰트 크기 -->
-                    <div>
-                        <label for="bookmarkFontSize" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">폰트 크기</label>
-                        <select id="bookmarkFontSize" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-bookmark-blue dark:focus:ring-teal-500">
-                            <option value="10">작게 (10px)</option>
-                            <option value="12">중간 (12px)</option>
-                            <option value="14">크게 (14px)</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">북마크 타이틀의 글자 크기입니다.</p>
-                    </div>
-                    
-                    <!-- 최대 북마크 수 -->
-                    <div>
-                        <label for="maxBookmarks" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">최대 북마크 수</label>
-                        <input type="number" id="maxBookmarks" min="5" max="100" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-bookmark-blue dark:focus:ring-teal-500">
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">한 번에 표시할 북마크의 최대 개수입니다.</p>
-                    </div>
-                    
-                    <!-- 애니메이션 사용 여부 -->
-                    <div class="flex items-center space-x-3 p-2 rounded-md bg-gray-50 dark:bg-gray-750">
-                        <input type="checkbox" id="animationEnabled" class="h-5 w-5 rounded">
-                        <label for="animationEnabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">애니메이션 사용</label>
-                    </div>
-                    
-                    <!-- 북마크 레이아웃 모드 -->
-                    <div>
-                        <label for="bookmarkLayoutMode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">북마크 레이아웃</label>
-                        <select id="bookmarkLayoutMode" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-bookmark-blue dark:focus:ring-teal-500">
-                            <option value="circle">원형 (기본)</option>
-                            <option value="grid">격자형</option>
-                            <option value="fullscreen">전체화면</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">북마크가 표시되는 방식을 선택합니다.</p>
-                    </div>
-                    
-                    <!-- 북마크 애니메이션 모드 -->
-                    <div>
-                        <label for="bookmarkAnimationMode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">애니메이션 모드</label>
-                        <select id="bookmarkAnimationMode" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-bookmark-blue dark:focus:ring-teal-500">
-                            <option value="sequence">순차적 등장</option>
-                            <option value="shoot">발사 (기본)</option>
-                            <option value="list">리스트형</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">북마크가 나타나는 애니메이션 효과를 선택합니다.</p>
+            <section class="section-card">
+                <div class="section-header">북마크 표시 설정</div>
+                <div class="section-body">
+                    <div class="grid gap-5 sm:grid-cols-2">
+                        <!-- 아이콘 크기 -->
+                        <div>
+                            <label for="bookmarkIconSize" class="block text-sm font-medium text-gray-300 mb-2">아이콘 크기</label>
+                            <select id="bookmarkIconSize" class="w-full px-3 py-2">
+                                <option value="32">작게 (32px)</option>
+                                <option value="48">중간 (48px)</option>
+                                <option value="64">크게 (64px)</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-400">북마크 아이콘의 크기를 설정합니다.</p>
+                        </div>
+                        
+                        <!-- 폰트 크기 -->
+                        <div>
+                            <label for="bookmarkFontSize" class="block text-sm font-medium text-gray-300 mb-2">폰트 크기</label>
+                            <select id="bookmarkFontSize" class="w-full px-3 py-2">
+                                <option value="10">작게 (10px)</option>
+                                <option value="12">중간 (12px)</option>
+                                <option value="14">크게 (14px)</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-400">북마크 타이틀의 글자 크기입니다.</p>
+                        </div>
+                        
+                        <!-- 최대 북마크 수 -->
+                        <div>
+                            <label for="maxBookmarks" class="block text-sm font-medium text-gray-300 mb-2">최대 북마크 수</label>
+                            <input type="number" id="maxBookmarks" min="5" max="100" class="w-full px-3 py-2">
+                            <p class="mt-1 text-xs text-gray-400">한 번에 표시할 북마크의 최대 개수입니다.</p>
+                        </div>
+                        
+                        <!-- 애니메이션 사용 여부 -->
+                        <div class="flex items-center space-x-3 p-2 rounded-md bg-gray-750">
+                            <input type="checkbox" id="animationEnabled" class="h-5 w-5 rounded">
+                            <label for="animationEnabled" class="text-sm font-medium text-gray-300">애니메이션 사용</label>
+                        </div>
+                        
+                        <!-- 북마크 레이아웃 모드 -->
+                        <div>
+                            <label for="bookmarkLayoutMode" class="block text-sm font-medium text-gray-300 mb-2">북마크 레이아웃</label>
+                            <select id="bookmarkLayoutMode" class="w-full px-3 py-2">
+                                <option value="circle">원형 (기본)</option>
+                                <option value="grid">격자형</option>
+                                <option value="fullscreen">전체화면</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-400">북마크가 표시되는 방식을 선택합니다.</p>
+                        </div>
+                        
+                        <!-- 북마크 애니메이션 모드 -->
+                        <div>
+                            <label for="bookmarkAnimationMode" class="block text-sm font-medium text-gray-300 mb-2">애니메이션 모드</label>
+                            <select id="bookmarkAnimationMode" class="w-full px-3 py-2">
+                                <option value="sequence">순차적 등장</option>
+                                <option value="shoot">발사 (기본)</option>
+                                <option value="list">리스트형</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-400">북마크가 나타나는 애니메이션 효과를 선택합니다.</p>
+                        </div>
                     </div>
                 </div>
             </section>
 
             <!-- 마우스 커서 설정 섹션 -->
-            <section class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-bookmark-blue dark:text-teal-300 border-b border-gray-100 dark:border-gray-700 pb-3">마우스 커서 설정</h2>
-                <div class="grid gap-4">
+            <section class="section-card">
+                <div class="section-header">마우스 커서 설정</div>
+                <div class="section-body">
                     <div>
-                        <label for="mouseCursorIcon" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label for="mouseCursorIcon" class="block text-sm font-medium text-gray-300 mb-2">
                             커스텀 마우스 커서 이미지
                         </label>
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div class="file-selection-container">
                             <div class="relative">
                                 <input type="file" id="mouseCursorIcon" accept="image/*" class="hidden">
-                                <button onclick="document.getElementById('mouseCursorIcon').click()" class="btn px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-650 shadow-sm">
+                                <button id="mouseCursorIconBtn" class="btn btn-secondary file-btn">
                                     이미지 선택
                                 </button>
-                                <span id="mouseCursorFileName" class="text-sm text-gray-500 dark:text-gray-400 ml-2">선택된 파일 없음</span>
                             </div>
-                            <div class="w-10 h-10 border border-gray-300 dark:border-gray-600 rounded-md flex items-center justify-center bg-gray-100 dark:bg-gray-750">
-                                <img id="mouseCursorPreview" class="max-w-8 max-h-8 hidden" alt="커서 미리보기">
-                                <span id="mouseCursorNoPreview" class="text-sm text-gray-400 dark:text-gray-500">미리보기</span>
+                            <div class="file-info">
+                                <span id="mouseCursorFileName" class="file-name text-sm text-gray-400">선택된 파일 없음</span>
+                            </div>
+                            <div class="preview-container">
+                                <div class="w-10 h-10 border border-gray-600 rounded-md flex items-center justify-center bg-gray-750">
+                                    <img id="mouseCursorPreview" class="max-w-8 max-h-8 hidden" alt="커서 미리보기">
+                                    <span id="mouseCursorNoPreview" class="text-sm text-gray-500">미리보기</span>
+                                </div>
                             </div>
                         </div>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">32x32 픽셀 크기의 PNG 이미지를 권장합니다.</p>
+                        <p class="mt-2 text-xs text-gray-400">32x32 픽셀 크기의 PNG 이미지를 권장합니다.</p>
                     </div>
                 </div>
             </section>
             
             <!-- 버튼 이미지 설정 섹션 -->
-            <section class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-bookmark-blue dark:text-teal-300 border-b border-gray-100 dark:border-gray-700 pb-3">버튼 이미지 설정</h2>
-                <div class="grid gap-6 sm:grid-cols-2">
-                    <!-- 뒤로가기 버튼 -->
-                    <div>
-                        <label for="backButtonIcon" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            뒤로가기 버튼 이미지
-                        </label>
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                            <div class="relative">
-                                <input type="file" id="backButtonIcon" accept="image/*" class="hidden">
-                                <button onclick="document.getElementById('backButtonIcon').click()" class="btn px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-650 shadow-sm">
-                                    이미지 선택
-                                </button>
-                                <span id="backButtonFileName" class="text-sm text-gray-500 dark:text-gray-400 ml-2">선택된 파일 없음</span>
+            <section class="section-card">
+                <div class="section-header">버튼 이미지 설정</div>
+                <div class="section-body">
+                    <div class="grid gap-6 sm:grid-cols-2">
+                        <!-- 뒤로가기 버튼 -->
+                        <div>
+                            <label for="backButtonIcon" class="block text-sm font-medium text-gray-300 mb-2">
+                                뒤로가기 버튼 이미지
+                            </label>
+                            <div class="file-selection-container">
+                                <div class="relative">
+                                    <input type="file" id="backButtonIcon" accept="image/*" class="hidden">
+                                    <button id="backButtonIconBtn" class="btn btn-secondary file-btn">
+                                        이미지 선택
+                                    </button>
+                                </div>
+                                <div class="file-info">
+                                    <span id="backButtonFileName" class="file-name text-sm text-gray-400">선택된 파일 없음</span>
+                                </div>
+                                <div class="preview-container">
+                                    <div class="w-12 h-12 border border-gray-600 rounded-md flex items-center justify-center bg-gray-750">
+                                        <img id="backButtonPreview" class="max-w-10 max-h-10 hidden" alt="뒤로가기 버튼 미리보기">
+                                        <span id="backButtonNoPreview" class="text-sm text-gray-500">미리보기</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-md flex items-center justify-center bg-gray-100 dark:bg-gray-750">
-                                <img id="backButtonPreview" class="max-w-10 max-h-10 hidden" alt="뒤로가기 버튼 미리보기">
-                                <span id="backButtonNoPreview" class="text-sm text-gray-400 dark:text-gray-500">미리보기</span>
-                            </div>
+                            <p class="mt-2 text-xs text-gray-400">48x48 픽셀 크기의 PNG 이미지를 권장합니다.</p>
                         </div>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">48x48 픽셀 크기의 PNG 이미지를 권장합니다.</p>
-                    </div>
-                    
-                    <!-- 북마크 추가 버튼 -->
-                    <div>
-                        <label for="addButtonIcon" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            북마크 추가 버튼 이미지
-                        </label>
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                            <div class="relative">
-                                <input type="file" id="addButtonIcon" accept="image/*" class="hidden">
-                                <button onclick="document.getElementById('addButtonIcon').click()" class="btn px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-650 shadow-sm">
-                                    이미지 선택
-                                </button>
-                                <span id="addButtonFileName" class="text-sm text-gray-500 dark:text-gray-400 ml-2">선택된 파일 없음</span>
+                        
+                        <!-- 북마크 추가 버튼 -->
+                        <div>
+                            <label for="addButtonIcon" class="block text-sm font-medium text-gray-300 mb-2">
+                                북마크 추가 버튼 이미지
+                            </label>
+                            <div class="file-selection-container">
+                                <div class="relative">
+                                    <input type="file" id="addButtonIcon" accept="image/*" class="hidden">
+                                    <button id="addButtonIconBtn" class="btn btn-secondary file-btn">
+                                        이미지 선택
+                                    </button>
+                                </div>
+                                <div class="file-info">
+                                    <span id="addButtonFileName" class="file-name text-sm text-gray-400">선택된 파일 없음</span>
+                                </div>
+                                <div class="preview-container">
+                                    <div class="w-12 h-12 border border-gray-600 rounded-md flex items-center justify-center bg-gray-750">
+                                        <img id="addButtonPreview" class="max-w-10 max-h-10 hidden" alt="추가 버튼 미리보기">
+                                        <span id="addButtonNoPreview" class="text-sm text-gray-500">미리보기</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-md flex items-center justify-center bg-gray-100 dark:bg-gray-750">
-                                <img id="addButtonPreview" class="max-w-10 max-h-10 hidden" alt="추가 버튼 미리보기">
-                                <span id="addButtonNoPreview" class="text-sm text-gray-400 dark:text-gray-500">미리보기</span>
-                            </div>
+                            <p class="mt-2 text-xs text-gray-400">48x48 픽셀 크기의 PNG 이미지를 권장합니다.</p>
                         </div>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">48x48 픽셀 크기의 PNG 이미지를 권장합니다.</p>
                     </div>
                 </div>
             </section>
 
             <!-- 버튼 섹션 -->
-            <div class="flex flex-wrap justify-between gap-4">
+            <div class="mt-4 flex flex-col sm:flex-row justify-between gap-4">
                 <div>
-                    <button type="submit" class="btn bg-bookmark-blue hover:bg-blue-600 dark:bg-teal-600 dark:hover:bg-teal-500 text-white px-6 py-2 rounded-md shadow">저장</button>
-                    <div id="status" class="inline-block ml-4 text-green-600 dark:text-green-400 font-medium"></div>
+                    <button type="submit" class="btn btn-primary">저장</button>
+                    <span id="status" class="inline-block ml-4 text-green-400 font-medium"></span>
                 </div>
-                <div class="flex gap-3">
-                    <button id="show-import-button" type="button" class="btn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-5 py-2 rounded-md shadow flex items-center">
+                <div class="btn-group">
+                    <button id="show-import-button" type="button" class="btn btn-secondary">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                         </svg>
                         북마크 불러오기
                     </button>
-                    <a id="donate-link" href="#" class="btn inline-flex items-center justify-center bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-500 text-white px-5 py-2 rounded-md shadow">
+                    <a id="donate-link" href="#" class="btn btn-warning">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>

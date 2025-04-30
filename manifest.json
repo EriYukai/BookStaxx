@@ -19,7 +19,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["contentScript.js"],
+      "js": ["content.js"],
       "css": ["contentStyles.css"],
       "run_at": "document_end"
     }
@@ -46,6 +46,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'unsafe-inline'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 } 

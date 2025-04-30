@@ -15,6 +15,14 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     font-size: 14px;
     transition: all 0.2s ease;
+    display: block;
+    opacity: 1;
+    visibility: visible;
+}
+
+@keyframes bookstaxx-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* 밝은 테마 */
@@ -44,6 +52,8 @@
 .bookstaxx-search-container {
     padding: 12px;
     border-bottom: 1px solid;
+    background: inherit;
+    z-index: 10;
 }
 .bookstaxx-light-theme .bookstaxx-search-container {
     border-color: #ddd;
@@ -206,4 +216,182 @@
 }
 .bookstaxx-dark-theme .bookstaxx-bookmark-container::-webkit-scrollbar-thumb:hover {
     background: #777;
+}
+
+/* 북마크 바 애니메이션 */
+@keyframes bookstaxx-slide-in {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* 북마크 아이콘 표시 */
+.bookstaxx-icons-view {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px;
+}
+
+.bookstaxx-bookmark-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 10px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.bookstaxx-bookmark-icon:hover {
+    transform: scale(1.1);
+}
+
+.bookstaxx-bookmark-icon-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-bottom: 5px;
+    background-color: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.bookstaxx-bookmark-icon-title {
+    font-size: 12px;
+    text-align: center;
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 액션 버튼 스타일 수정 */
+.bookstaxx-action-button {
+    position: fixed;
+    width: 48px;
+    height: 48px;
+    background: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+    z-index: 2147483640;
+    border: 1px solid #ddd;
+    transition: all 0.2s ease;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    outline: none;
+}
+
+.bookstaxx-action-button::before {
+    content: '';
+    position: absolute;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    z-index: -1;
+    animation: bookstaxx-pulse-ring 2s ease infinite;
+}
+
+@keyframes bookstaxx-pulse-ring {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.3;
+    }
+    100% {
+        transform: scale(0.9);
+        opacity: 0.5;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bookstaxx-action-button::before {
+        animation: none;
+    }
+}
+
+.bookstaxx-dark-theme ~ .bookstaxx-action-button {
+    background: #333;
+    border-color: #555;
+}
+
+.bookstaxx-action-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.5);
+}
+
+.bookstaxx-back-button {
+    left: 20px;
+    background-color: #f8f9fa;
+}
+
+.bookstaxx-add-button {
+    right: 20px;
+    background-color: #4285f4;
+}
+
+.bookstaxx-back-button .bookstaxx-action-icon {
+    width: 24px;
+    height: 24px;
+    stroke: #333;
+}
+
+.bookstaxx-add-button .bookstaxx-action-icon {
+    width: 24px;
+    height: 24px;
+    stroke: #fff;
+}
+
+.bookstaxx-dark-theme ~ .bookstaxx-back-button .bookstaxx-action-icon {
+    stroke: #eee;
+}
+
+.bookstaxx-dark-theme ~ .bookstaxx-back-button {
+    background-color: #333;
+}
+
+.bookstaxx-dark-theme ~ .bookstaxx-add-button {
+    background-color: #4285f4;
+}
+
+/* 북마크 바 표시 클래스 */
+.bookstaxx-bookmark-bar.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    animation: bookstaxx-fade-in 0.3s ease;
+}
+
+/* 액션 버튼 애니메이션 추가 */
+@keyframes bookstaxx-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.bookstaxx-action-button {
+    animation: bookstaxx-pulse 2s infinite;
+}
+
+.bookstaxx-action-button:hover {
+    animation: none;
+}
+
+/* 북마크 바 초기 상태를 명시적으로 설정 */
+.bookstaxx-bookmark-bar {
+    display: block;
+    opacity: 1;
+    visibility: visible;
 } 
