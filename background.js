@@ -171,39 +171,68 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === "reinitialize") {
       console.log("재초기화 요청 수신됨");
       
-      // 초기화가 이미 완료된 경우
-      if (isInitialized && bookStaxxFolderId) {
-        console.log("이미 초기화된 상태, 상태 전송");
-        setTimeout(() => {
-          sendResponse({ 
-            success: true, 
-            message: "확장 프로그램이 이미 초기화되어 있습니다.", 
-            folderId: bookStaxxFolderId 
-          });
-        }, 0);
-      } else {
-        // 재초기화 시도
-        console.log("재초기화 시도 중...");
-        initialize()
-          .then(() => {
-            console.log("재초기화 성공");
-            setTimeout(() => {
+      try {
+        // 초기화가 이미 완료된 경우
+        if (isInitialized && bookStaxxFolderId) {
+          console.log("이미 초기화된 상태, 상태 전송");
+          setTimeout(() => {
+            try {
               sendResponse({ 
                 success: true, 
-                message: "확장 프로그램이 재초기화되었습니다.", 
-                folderId: bookStaxxFolderId 
+                message: "확장 프로그램이 이미 초기화되어 있습니다.", 
+                folderId: bookStaxxFolderId,
+                timestamp: Date.now()
               });
-            }, 0);
-          })
-          .catch(error => {
-            console.error("재초기화 실패:", error);
-            setTimeout(() => {
-              sendResponse({ 
-                success: false, 
-                error: "재초기화 실패: " + (error.message || "알 수 없는 오류") 
-              });
-            }, 0);
+            } catch (responseError) {
+              console.error("재초기화 응답 중 오류:", responseError);
+              sendResponse({ success: false, error: "응답 전송 중 오류 발생" });
+            }
+          }, 0);
+        } else {
+          // 재초기화 시도
+          console.log("재초기화 시도 중...");
+          initialize()
+            .then(() => {
+              console.log("재초기화 성공");
+              setTimeout(() => {
+                try {
+                  sendResponse({ 
+                    success: true, 
+                    message: "확장 프로그램이 재초기화되었습니다.", 
+                    folderId: bookStaxxFolderId,
+                    timestamp: Date.now()
+                  });
+                } catch (responseError) {
+                  console.error("재초기화 성공 응답 중 오류:", responseError);
+                }
+              }, 0);
+            })
+            .catch(error => {
+              console.error("재초기화 실패:", error);
+              setTimeout(() => {
+                try {
+                  sendResponse({ 
+                    success: false, 
+                    error: "재초기화 실패: " + (error.message || "알 수 없는 오류"),
+                    timestamp: Date.now()
+                  });
+                } catch (responseError) {
+                  console.error("재초기화 실패 응답 중 오류:", responseError);
+                }
+              }, 0);
+            });
+        }
+      } catch (error) {
+        console.error("재초기화 처리 중 예외 발생:", error);
+        try {
+          sendResponse({ 
+            success: false, 
+            error: "재초기화 처리 중 예외 발생: " + error.message,
+            timestamp: Date.now()
           });
+        } catch (responseError) {
+          console.error("예외 응답 중 추가 오류:", responseError);
+        }
       }
       
       return true; // 비동기 응답을 위해 true 반환
@@ -212,14 +241,28 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     // 컨텍스트 유효성 확인을 위한 핑
     if (request.action === "ping") {
       console.log("핑 요청 수신됨");
-      setTimeout(() => {
-        sendResponse({ 
-          success: true, 
-          message: "pong",
-          initialized: isInitialized,
-          folderId: bookStaxxFolderId
-        });
-      }, 0);
+      try {
+        // 핑 요청에 대해 더 많은 정보 제공
+        setTimeout(() => {
+          try {
+            sendResponse({ 
+              success: true, 
+              message: "pong",
+              initialized: isInitialized,
+              folderId: bookStaxxFolderId,
+              timestamp: Date.now(),
+              version: chrome.runtime.getManifest().version
+            });
+          } catch (responseError) {
+            console.error("핑 응답 중 오류:", responseError);
+            // 실패한 경우 간단한 객체 반환
+            sendResponse({ success: false, error: responseError.message });
+          }
+        }, 0);
+      } catch (error) {
+        console.error("핑 처리 중 예외 발생:", error);
+        sendResponse({ success: false, error: error.message });
+      }
       return true;
     }
     

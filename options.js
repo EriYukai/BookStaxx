@@ -50,50 +50,57 @@ const DEFAULT_SETTINGS = {
 function saveOptions(e) {
     e.preventDefault();
     
-    // Handle file inputs (if any)
-    handleFileInput(backButtonIconInput, 'backButtonIcon');
-    handleFileInput(addButtonIconInput, 'addButtonIcon');
-    handleFileInput(mouseCursorIconInput, 'mouseCursorIcon');
-    
-    // 아이콘 크기와 폰트 크기가 숫자로 저장되도록 수정
-    const iconSize = bookmarkIconSizeSelect.value;
-    const fontSize = bookmarkFontSizeSelect.value;
-    
-    // px 접미사를 제거하고 숫자만 저장
-    const iconSizeValue = parseInt(iconSize, 10);
-    const fontSizeValue = parseInt(fontSize, 10);
-    
-    console.log(`아이콘 크기: ${iconSizeValue}px, 폰트 크기: ${fontSizeValue}px`);
-    
-    // Save settings to chrome.storage.sync
-    chrome.storage.sync.set({
-        bookmarkIconSize: iconSize,
-        bookmarkFontSize: fontSize,
-        bookmarkLayoutMode: bookmarkLayoutModeSelect.value,
-        bookmarkAnimationMode: bookmarkAnimationModeSelect.value,
-        maxBookmarks: parseInt(maxBookmarksInput.value, 10),
-        animationEnabled: animationEnabledCheckbox.checked,
-        mouseCursorBase64: document.getElementById('mouseCursorPreview').src.startsWith('data:') 
-            ? document.getElementById('mouseCursorPreview').src 
-            : '',
-        backButtonBase64: document.getElementById('backButtonPreview').src.startsWith('data:') 
-            ? document.getElementById('backButtonPreview').src 
-            : '',
-        addButtonBase64: document.getElementById('addButtonPreview').src.startsWith('data:') 
-            ? document.getElementById('addButtonPreview').src 
-            : ''
-    }, function() {
-        // Update status to let user know options were saved.
-        const status = document.getElementById('status');
-        status.textContent = '옵션이 저장되었습니다!';
-        setTimeout(function() {
-            status.textContent = '';
-        }, 2000);
-    });
+    try {
+        // 아이콘 크기와 폰트 크기가 숫자로 저장되도록 수정
+        const iconSize = bookmarkIconSizeSelect.value;
+        const fontSize = bookmarkFontSizeSelect.value;
+        
+        // px 접미사를 제거하고 숫자만 저장
+        const iconSizeValue = parseInt(iconSize, 10);
+        const fontSizeValue = parseInt(fontSize, 10);
+        
+        console.log(`아이콘 크기: ${iconSizeValue}px, 폰트 크기: ${fontSizeValue}px`);
+        
+        // 설정 저장 (base64 이미지 데이터 제외)
+        chrome.storage.sync.set({
+            bookmarkIconSize: iconSize,
+            bookmarkFontSize: fontSize,
+            bookmarkLayoutMode: bookmarkLayoutModeSelect.value,
+            bookmarkAnimationMode: bookmarkAnimationModeSelect.value,
+            maxBookmarks: parseInt(maxBookmarksInput.value, 10),
+            animationEnabled: animationEnabledCheckbox.checked
+        }, function() {
+            if (chrome.runtime.lastError) {
+                console.error("설정 저장 오류:", chrome.runtime.lastError);
+                showStatusMessage("설정 저장 중 오류가 발생했습니다.", 'error');
+                return;
+            }
+            
+            // 저장 성공 메시지 표시
+            showStatusMessage("설정이 저장되었습니다!", 'success');
+        });
+        
+        // 파일 입력 처리 (있는 경우만)
+        if (backButtonIconInput.files && backButtonIconInput.files.length > 0) {
+            handleFileInput(backButtonIconInput, 'backButtonIcon');
+        }
+        
+        if (addButtonIconInput.files && addButtonIconInput.files.length > 0) {
+            handleFileInput(addButtonIconInput, 'addButtonIcon');
+        }
+        
+        if (mouseCursorIconInput.files && mouseCursorIconInput.files.length > 0) {
+            handleFileInput(mouseCursorIconInput, 'mouseCursorIcon');
+        }
+    } catch (error) {
+        console.error("설정 저장 중 예외 발생:", error);
+        showStatusMessage("설정 저장 중 오류가 발생했습니다: " + error.message, 'error');
+    }
 }
 
 // Restore options from chrome.storage
 function restoreOptions() {
+    // 기본 설정 로드
     chrome.storage.sync.get(DEFAULT_SETTINGS, (items) => {
         document.getElementById('bookmarkIconSize').value = items.bookmarkIconSize;
         document.getElementById('bookmarkFontSize').value = items.bookmarkFontSize;
@@ -102,25 +109,12 @@ function restoreOptions() {
         document.getElementById('bookmarkLayoutMode').value = items.bookmarkLayoutMode;
         document.getElementById('bookmarkAnimationMode').value = items.bookmarkAnimationMode;
         
-        // Restore image previews if available
-        chrome.storage.local.get(['backButtonIcon', 'addButtonIcon', 'mouseCursorIcon'], function(localItems) {
-            if (localItems.backButtonIcon) {
-                backButtonPreview.src = localItems.backButtonIcon;
-                backButtonPreview.classList.remove('hidden');
-            }
-            if (localItems.addButtonIcon) {
-                addButtonPreview.src = localItems.addButtonIcon;
-                addButtonPreview.classList.remove('hidden');
-            }
-            if (localItems.mouseCursorIcon) {
-                mouseCursorPreview.src = localItems.mouseCursorIcon;
-                mouseCursorPreview.classList.remove('hidden');
-            }
-        });
+        // 분할 저장된 이미지 미리보기 업데이트
+        updateImagePreviews();
     });
 }
 
-// 파일 입력 처리 함수 (누락된 함수 추가)
+// 파일 입력 처리 함수 (최적화된 버전)
 function handleFileInput(inputElement, storageKey) {
     if (!inputElement || !inputElement.files || inputElement.files.length === 0) {
         console.log(`${storageKey}: 선택된 파일 없음`);
@@ -130,39 +124,210 @@ function handleFileInput(inputElement, storageKey) {
     console.log(`${storageKey} 파일 처리 중...`);
     const file = inputElement.files[0];
     
+    // 이미지 크기 제한 (최대 파일 크기: 40KB)
+    if (file.size > 40 * 1024) {
+        console.warn(`${storageKey} 파일 크기 초과: ${file.size / 1024}KB`);
+        showStatusMessage(`이미지 크기가 너무 큽니다 (${Math.round(file.size / 1024)}KB). 40KB 이하의 이미지를 사용해주세요.`, 'error');
+        return;
+    }
+    
     // 파일을 Data URL로 읽기
     readFileAsDataURL(file)
         .then(dataUrl => {
-            // 로컬 스토리지에 저장
-            chrome.storage.local.set({ [storageKey]: dataUrl }, function() {
-                if (chrome.runtime.lastError) {
-                    console.error(`${storageKey} 저장 오류:`, chrome.runtime.lastError);
-                } else {
+            // 작은 조각으로 나누어 저장
+            splitAndStoreBase64(dataUrl, storageKey)
+                .then(() => {
                     console.log(`${storageKey} 저장 완료`);
-                }
-            });
-            
-            // 해당 미리보기 이미지에 설정
-            const previewId = `${storageKey.replace('Icon', '')}Preview`;
-            const previewElement = document.getElementById(previewId);
-            if (previewElement) {
-                previewElement.src = dataUrl;
-                previewElement.classList.remove('hidden');
-            }
+                    
+                    // 해당 미리보기 이미지에 설정
+                    const previewId = `${storageKey.replace('Icon', '')}Preview`;
+                    const previewElement = document.getElementById(previewId);
+                    if (previewElement) {
+                        previewElement.src = dataUrl;
+                        previewElement.classList.remove('hidden');
+                        document.getElementById(`${previewId}NoPreview`).classList.add('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error(`${storageKey} 저장 오류:`, error);
+                    showStatusMessage(`이미지 저장 중 오류가 발생했습니다: ${error.message}`, 'error');
+                });
         })
         .catch(error => {
             console.error(`${storageKey} 파일 읽기 오류:`, error);
+            showStatusMessage(`이미지 파일 읽기 오류: ${error.message}`, 'error');
         });
 }
 
-// 파일을 Base64 Data URL로 읽는 함수 (주석 제거)
-function readFileAsDataURL(file) {
+// base64 데이터를 작은 조각으로 나누어 저장하는 함수
+function splitAndStoreBase64(dataUrl, keyPrefix) {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-        reader.readAsDataURL(file);
+        try {
+            // 기존 조각 모두 삭제
+            const keysToRemove = [];
+            for (let i = 0; i < 10; i++) {
+                keysToRemove.push(`${keyPrefix}_part${i}`);
+            }
+            
+            chrome.storage.local.remove(keysToRemove, () => {
+                if (chrome.runtime.lastError) {
+                    console.warn("기존 데이터 삭제 중 오류:", chrome.runtime.lastError);
+                }
+                
+                // 데이터를 8KB 청크로 분할
+                const chunkSize = 8 * 1024; // 8KB
+                const totalParts = Math.ceil(dataUrl.length / chunkSize);
+                
+                if (totalParts > 10) {
+                    reject(new Error("이미지가 너무 큽니다. 더 작은 이미지를 사용해주세요."));
+                    return;
+                }
+                
+                // 메타데이터 저장
+                const metaData = {
+                    totalParts: totalParts,
+                    totalSize: dataUrl.length,
+                    timestamp: Date.now()
+                };
+                
+                chrome.storage.local.set({ [`${keyPrefix}_meta`]: metaData }, () => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                        return;
+                    }
+                    
+                    // 각 부분을 저장
+                    let partsSaved = 0;
+                    
+                    for (let i = 0; i < totalParts; i++) {
+                        const start = i * chunkSize;
+                        const end = Math.min(start + chunkSize, dataUrl.length);
+                        const part = dataUrl.substring(start, end);
+                        
+                        chrome.storage.local.set({ [`${keyPrefix}_part${i}`]: part }, () => {
+                            if (chrome.runtime.lastError) {
+                                reject(chrome.runtime.lastError);
+                                return;
+                            }
+                            
+                            partsSaved++;
+                            if (partsSaved === totalParts) {
+                                resolve();
+                            }
+                        });
+                    }
+                });
+            });
+        } catch (error) {
+            reject(error);
+        }
     });
+}
+
+// 분할 저장된 base64 데이터를 복원하는 함수
+function loadSplitBase64Data(keyPrefix) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get(`${keyPrefix}_meta`, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+                return;
+            }
+            
+            const metaData = result[`${keyPrefix}_meta`];
+            if (!metaData) {
+                resolve(''); // 메타데이터가 없으면 빈 문자열 반환
+                return;
+            }
+            
+            // 필요한 모든 부분의 키 생성
+            const partKeys = [];
+            for (let i = 0; i < metaData.totalParts; i++) {
+                partKeys.push(`${keyPrefix}_part${i}`);
+            }
+            
+            // 모든 부분 로드
+            chrome.storage.local.get(partKeys, (parts) => {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
+                    return;
+                }
+                
+                // 부분 결합
+                let fullData = '';
+                for (let i = 0; i < metaData.totalParts; i++) {
+                    const part = parts[`${keyPrefix}_part${i}`];
+                    if (part) {
+                        fullData += part;
+                    } else {
+                        reject(new Error(`${keyPrefix}의 ${i}번째 부분이 누락되었습니다.`));
+                        return;
+                    }
+                }
+                
+                resolve(fullData);
+            });
+        });
+    });
+}
+
+// 이미지 미리보기 업데이트
+function updateImagePreviews() {
+    const previewMap = [
+        { key: 'backButtonIcon', previewId: 'backButtonPreview', noPreviewId: 'backButtonNoPreview' },
+        { key: 'addButtonIcon', previewId: 'addButtonPreview', noPreviewId: 'addButtonNoPreview' },
+        { key: 'mouseCursorIcon', previewId: 'mouseCursorPreview', noPreviewId: 'mouseCursorNoPreview' }
+    ];
+    
+    previewMap.forEach(item => {
+        loadSplitBase64Data(item.key)
+            .then(dataUrl => {
+                if (dataUrl) {
+                    const previewElement = document.getElementById(item.previewId);
+                    const noPreviewElement = document.getElementById(item.noPreviewId);
+                    
+                    if (previewElement && noPreviewElement) {
+                        previewElement.src = dataUrl;
+                        previewElement.classList.remove('hidden');
+                        noPreviewElement.classList.add('hidden');
+                    }
+                }
+            })
+            .catch(error => {
+                console.warn(`${item.key} 로드 오류:`, error);
+            });
+    });
+}
+
+// 상태 메시지 표시 함수
+function showStatusMessage(message, type = 'info') {
+    const status = document.getElementById('status');
+    if (!status) return;
+    
+    status.textContent = message;
+    
+    // 메시지 유형에 따른 스타일 변경
+    status.className = 'inline-block ml-4 font-medium';
+    
+    switch (type) {
+        case 'error':
+            status.classList.add('text-red-500');
+            break;
+        case 'success':
+            status.classList.add('text-green-400');
+            break;
+        case 'warning':
+            status.classList.add('text-yellow-500');
+            break;
+        case 'info':
+        default:
+            status.classList.add('text-blue-400');
+            break;
+    }
+    
+    // 3초 후 메시지 삭제
+    setTimeout(() => {
+        status.textContent = '';
+    }, 3000);
 }
 
 // Show preview when a file is selected
@@ -184,6 +349,16 @@ function handleFilePreview(inputElement, previewElement) {
                  previewElement.classList.add('hidden');
              }
         }
+    });
+}
+
+// 파일을 Base64 Data URL로 읽는 함수
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
     });
 }
 

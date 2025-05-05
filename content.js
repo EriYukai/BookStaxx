@@ -41,6 +41,12 @@ function initializeBookStaxx() {
     try {
         console.log("BookStaxx 초기화");
         
+        // 이미 초기화된 경우 중복 초기화 방지
+        if (isInitialized) {
+            console.log("이미 초기화되었습니다.");
+            return;
+        }
+        
         // 컨텍스트 무효화 상태 확인
         if (contextInvalidated) {
             console.log("컨텍스트가 무효화된 상태에서 초기화 시도 - 복구 먼저 진행");
@@ -48,9 +54,20 @@ function initializeBookStaxx() {
             return;
         }
         
+        // Chrome API 객체 접근 확인
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+            console.error("초기화 실패: chrome 객체 또는 runtime API에 접근할 수 없습니다.");
+            contextInvalidated = true;
+            tryRecoverContext();
+            return;
+        }
+        
         // 컨텍스트 무효화 상태 초기화
         contextInvalidated = false;
         console.log("컨텍스트 무효화 상태 초기화됨");
+        
+        // 오류 복구 시도 횟수 초기화
+        recoveryAttempts = 0;
         
         // 설정 로드
         loadAppSettings();
@@ -62,7 +79,8 @@ function initializeBookStaxx() {
         isInitialized = true;
         
         // 컨텍스트 유효성 체크 시작 (페이지 로드 후 바로 확인)
-        checkExtensionContext();
+        // 시간 간격을 늘려 부하 감소
+        setTimeout(checkExtensionContext, 1000);
     } catch (error) {
         console.error("BookStaxx 초기화 중 오류:", error);
         
@@ -1600,53 +1618,74 @@ function showErrorMessage(message) {
 
 // 확장 프로그램 컨텍스트 유효성 확인 함수
 function checkExtensionContext() {
+    // 이미 실행 중인 확인 타이머가 있다면 정리
+    if (checkContextTimer) {
+        clearTimeout(checkContextTimer);
+        checkContextTimer = null;
+    }
+    
+    // 이미 무효화된 상태라면 복구 시도
+    if (contextInvalidated) {
+        console.log("컨텍스트가 무효화되어 복구 시도");
+        tryRecoverContext();
+        
+        // 다음 확인 예약 (10초 후)
+        checkContextTimer = setTimeout(checkExtensionContext, 10000);
+        return;
+    }
+    
+    // 확장 컨텍스트 체크 전에 chrome 객체 확인
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+        console.error("chrome 또는 chrome.runtime 객체 접근 실패");
+        contextInvalidated = true;
+        tryRecoverContext();
+        
+        // 다음 확인 예약 (10초 후)
+        checkContextTimer = setTimeout(checkExtensionContext, 10000);
+        return;
+    }
+    
     try {
-        // 이미 실행 중인 확인 타이머가 있다면 정리
-        if (checkContextTimer) {
-            clearTimeout(checkContextTimer);
-            checkContextTimer = null;
-        }
-        
-        // 이미 무효화된 상태라면 복구 시도
-        if (contextInvalidated) {
-            console.log("컨텍스트가 무효화되어 복구 시도");
-            tryRecoverContext();
-            return;
-        }
-        
         // 간단한 메시지를 보내 확장 프로그램 연결 상태 확인
         chrome.runtime.sendMessage({ action: "ping" }, function(response) {
-            if (chrome.runtime.lastError) {
-                const errorMessage = chrome.runtime.lastError.message || "알 수 없는 오류";
-                
-                // Extension context invalidated 오류 처리
-                if (errorMessage.includes('Extension context invalidated')) {
-                    contextInvalidated = true;
-                    console.error("확장 프로그램 컨텍스트가 무효화되었습니다. 복구 시도를 시작합니다.");
+            // try-catch로 콜백 내부 오류 처리
+            try {
+                if (chrome.runtime.lastError) {
+                    const errorMessage = chrome.runtime.lastError.message || "알 수 없는 오류";
                     
-                    // 복구 시도
-                    tryRecoverContext();
-                    
-                    // 상단에 사용자에게 알림 표시
-                    showContextInvalidatedNotification();
+                    // Extension context invalidated 오류 처리
+                    if (errorMessage.includes('Extension context invalidated')) {
+                        contextInvalidated = true;
+                        console.error("확장 프로그램 컨텍스트가 무효화되었습니다. 복구 시도를 시작합니다.");
+                        
+                        // 복구 시도
+                        tryRecoverContext();
+                        
+                        // 상단에 사용자에게 알림 표시
+                        showContextInvalidatedNotification();
+                    } else {
+                        console.error("확장 프로그램 통신 오류:", errorMessage);
+                    }
                 } else {
-                    console.error("확장 프로그램 통신 오류:", errorMessage);
+                    console.log("확장 프로그램 컨텍스트 유효성 확인 완료");
+                    // 컨텍스트가 유효하다면 무효화 상태 초기화
+                    if (contextInvalidated) {
+                        contextInvalidated = false;
+                        recoveryAttempts = 0; // 복구 시도 횟수 초기화
+                        console.log("컨텍스트가 복구되었습니다.");
+                        
+                        // 복구 알림 메시지 제거
+                        removeContextNotification();
+                    }
                 }
-            } else {
-                console.log("확장 프로그램 컨텍스트 유효성 확인 완료");
-                // 컨텍스트가 유효하다면 무효화 상태 초기화
-                if (contextInvalidated) {
-                    contextInvalidated = false;
-                    recoveryAttempts = 0; // 복구 시도 횟수 초기화
-                    console.log("컨텍스트가 복구되었습니다.");
-                    
-                    // 복구 알림 메시지 제거
-                    removeContextNotification();
-                }
+            } catch (callbackError) {
+                console.error("핑 응답 처리 중 오류:", callbackError);
+                contextInvalidated = true;
+                tryRecoverContext();
             }
             
-            // 다음 컨텍스트 확인 예약 (5초마다 체크)
-            checkContextTimer = setTimeout(checkExtensionContext, 5000);
+            // 다음 컨텍스트 확인 예약 (10초마다 체크 - 5초에서 10초로 늘림)
+            checkContextTimer = setTimeout(checkExtensionContext, 10000);
         });
     } catch (error) {
         console.error("확장 프로그램 컨텍스트 확인 중 오류:", error);
@@ -1655,8 +1694,8 @@ function checkExtensionContext() {
         contextInvalidated = true;
         tryRecoverContext();
         
-        // 다음 컨텍스트 확인 예약
-        checkContextTimer = setTimeout(checkExtensionContext, 5000);
+        // 다음 컨텍스트 확인 예약 (10초 후)
+        checkContextTimer = setTimeout(checkExtensionContext, 10000);
     }
 }
 
@@ -1727,25 +1766,23 @@ function removeContextNotification() {
 
 // 컨텍스트 복구 시도 함수
 function tryRecoverContext() {
-    try {
-        // 이미 실행 중인 타이머가 있다면 정리
-        if (reconnectTimer) {
-            clearTimeout(reconnectTimer);
-            reconnectTimer = null;
-        }
+    // 이미 실행 중인 타이머가 있다면 정리
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+    
+    console.log("컨텍스트 복구 시도 중... (시도 횟수: " + (recoveryAttempts + 1) + "/" + MAX_RECOVERY_ATTEMPTS + ")");
+    
+    // 최대 복구 시도 횟수 확인
+    if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+        console.log("최대 복구 시도 횟수를 초과했습니다. 페이지 새로고침이 필요할 수 있습니다.");
         
-        console.log("컨텍스트 복구 시도 중... (시도 횟수: " + (recoveryAttempts + 1) + "/" + MAX_RECOVERY_ATTEMPTS + ")");
-        
-        // 최대 복구 시도 횟수 확인
-        if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
-            console.log("최대 복구 시도 횟수를 초과했습니다. 페이지 새로고침이 필요할 수 있습니다.");
-            
-            // 알림 업데이트
-            const notification = document.getElementById('bookstaxx-context-notification');
-            if (notification) {
-                notification.style.backgroundColor = "#f44336"; // 빨간색으로 변경
-                notification.textContent = "BookStaxx 확장 프로그램 연결을 복구할 수 없습니다. 페이지를 새로고침하세요.";
-            }
+        // 알림 업데이트
+        const notification = document.getElementById('bookstaxx-context-notification');
+        if (notification) {
+            notification.style.backgroundColor = "#f44336"; // 빨간색으로 변경
+            notification.textContent = "BookStaxx 확장 프로그램 연결을 복구할 수 없습니다. 페이지를 새로고침하세요.";
             
             // 사용자 경험 개선을 위해 자동 새로고침 옵션 제공
             if (!document.getElementById('bookstaxx-auto-refresh-btn')) {
@@ -1777,107 +1814,113 @@ function tryRecoverContext() {
                     window.location.reload();
                 });
                 
-                if (notification) {
-                    notification.appendChild(autoRefreshBtn);
-                }
+                notification.appendChild(autoRefreshBtn);
             }
-            
+        }
+        
+        return;
+    }
+    
+    // 복구 시도 횟수 증가
+    recoveryAttempts++;
+    
+    // 복구 알림 표시 또는 업데이트
+    updateRecoveryNotification();
+    
+    // 새로운 방식: 새 content script를 로드하기 위한 시도
+    try {
+        // Chrome API가 접근 가능한지 확인
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+            console.error("chrome 객체 또는 runtime API에 접근할 수 없습니다.");
+            scheduleNextRecoveryAttempt();
             return;
         }
         
-        // 복구 시도 횟수 증가
-        recoveryAttempts++;
-        
-        // 이벤트 리스너 재등록
-        try {
-            // 기존 이벤트 리스너 제거
-            document.removeEventListener('keydown', handleKeyDown);
-            document.removeEventListener('mousedown', handleDocumentClick);
-            document.removeEventListener('contextmenu', handleContextMenu);
-            
-            // 새 이벤트 리스너 등록
-            document.addEventListener('keydown', handleKeyDown);
-            document.addEventListener('mousedown', handleDocumentClick);
-            document.addEventListener('contextmenu', handleContextMenu);
-            
-            console.log("이벤트 리스너 재등록 완료");
-        } catch (e) {
-            console.error("이벤트 리스너 재등록 실패:", e);
-        }
-        
-        // 전역 객체 참조 재설정
-        try {
-            // Chrome API 객체 접근 복구 시도
-            if (typeof chrome === 'undefined' || !chrome.runtime) {
-                console.error("chrome 객체 또는 runtime API에 접근할 수 없습니다.");
-                
-                // chrome 객체가 정의되지 않은 경우 window.chrome 시도
-                if (window.chrome && window.chrome.runtime) {
-                    console.log("window.chrome 객체를 통해 접근 시도");
-                    chrome = window.chrome;
+        // 안전한 메시지 전송 시도
+        safelyTrySendMessage({ action: "reinitialize" })
+            .then(response => {
+                console.log("재초기화 응답:", response);
+                if (response && response.success) {
+                    onRecoverySuccess();
+                } else {
+                    console.warn("재초기화 응답이 성공이 아닙니다:", response);
+                    scheduleNextRecoveryAttempt();
                 }
-            }
-            
-            // 확장 프로그램 다시 초기화 시도
-            if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
-                chrome.runtime.sendMessage({ action: "reinitialize" }, function(response) {
-                    // 런타임 오류 발생 시 처리
-                    if (chrome.runtime.lastError) {
-                        console.error("컨텍스트 재설정 실패:", chrome.runtime.lastError.message);
-                        
-                        // 일정 시간 후 재시도 (지수 백오프)
-                        const delay = Math.min(1000 * Math.pow(1.5, recoveryAttempts), 10000);
-                        console.log(`${delay}ms 후 재시도 예정...`);
-                        reconnectTimer = setTimeout(tryRecoverContext, delay);
-                    } else if (response && response.success) {
-                        // 성공적인 응답
-                        console.log("확장 프로그램 재초기화 성공:", response);
-                        contextInvalidated = false;
-                        recoveryAttempts = 0;
-                        
-                        // 알림 업데이트
-                        const notification = document.getElementById('bookstaxx-context-notification');
-                        if (notification) {
-                            notification.style.backgroundColor = "#4caf50"; // 녹색으로 변경
-                            notification.textContent = "BookStaxx 확장 프로그램 연결이 복구되었습니다. 잠시 후 사라집니다...";
-                            
-                            // 3초 후 알림 제거
-                            setTimeout(removeContextNotification, 3000);
-                        }
-                        
-                        // 초기화 다시 실행
-                        initializeBookStaxx();
-                    } else {
-                        // 성공은 했지만 응답이 올바르지 않은 경우
-                        console.error("컨텍스트 재설정 중 이상한 응답:", response);
-                        reconnectTimer = setTimeout(tryRecoverContext, 1000);
-                    }
-                });
-            } else {
-                console.error("chrome.runtime.sendMessage에 접근할 수 없습니다.");
-                
-                // 알림 업데이트
-                const notification = document.getElementById('bookstaxx-context-notification');
-                if (notification) {
-                    notification.style.backgroundColor = "#ff9800"; // 주황색으로 변경
-                    notification.textContent = "BookStaxx 확장 프로그램 연결을 복구하는 중입니다...";
-                }
-                
-                // 일정 시간 후 재시도
-                reconnectTimer = setTimeout(tryRecoverContext, 1000 * recoveryAttempts);
-            }
-        } catch (e) {
-            console.error("컨텍스트 재설정 중 예외 발생:", e);
-            
-            // 예외 발생 시 일정 시간 후 재시도
-            reconnectTimer = setTimeout(tryRecoverContext, 1000 * recoveryAttempts);
-        }
+            })
+            .catch(error => {
+                console.error("재초기화 요청 중 오류:", error);
+                scheduleNextRecoveryAttempt();
+            });
     } catch (error) {
-        console.error("컨텍스트 복구 시도 중 오류:", error);
-        
-        // 치명적인 오류 발생 시에도 재시도
-        reconnectTimer = setTimeout(tryRecoverContext, 2000);
+        console.error("복구 시도 중 예외 발생:", error);
+        scheduleNextRecoveryAttempt();
     }
+}
+
+// 안전한 메시지 전송 함수 - 프로미스 반환
+function safelyTrySendMessage(message) {
+    return new Promise((resolve, reject) => {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+                reject(new Error("chrome.runtime.sendMessage API를 사용할 수 없습니다."));
+                return;
+            }
+            
+            chrome.runtime.sendMessage(message, response => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+                resolve(response);
+            });
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+// 복구 성공 처리 함수
+function onRecoverySuccess() {
+    console.log("컨텍스트 복구 성공!");
+    contextInvalidated = false;
+    recoveryAttempts = 0;
+    
+    // 알림 업데이트
+    const notification = document.getElementById('bookstaxx-context-notification');
+    if (notification) {
+        notification.style.backgroundColor = "#4caf50"; // 녹색으로 변경
+        notification.textContent = "BookStaxx 확장 프로그램 연결이 복구되었습니다.";
+        
+        // 3초 후 알림 제거
+        setTimeout(removeContextNotification, 3000);
+    }
+    
+    // 이벤트 리스너 재등록
+    registerEventListeners();
+    
+    // 확장 프로그램 초기화 다시 실행
+    if (!isInitialized) {
+        initializeBookStaxx();
+    }
+}
+
+// 복구 알림 상태 업데이트
+function updateRecoveryNotification() {
+    const notification = document.getElementById('bookstaxx-context-notification');
+    if (notification) {
+        notification.style.backgroundColor = "#ff9800"; // 주황색 
+        notification.textContent = `BookStaxx 확장 프로그램 연결을 복구 중입니다... (시도 ${recoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`;
+    } else {
+        showContextInvalidatedNotification();
+    }
+}
+
+// 다음 복구 시도 예약
+function scheduleNextRecoveryAttempt() {
+    // 지수 백오프 적용 (최대 30초)
+    const delay = Math.min(Math.pow(1.5, recoveryAttempts) * 1000, 30000);
+    console.log(`${Math.round(delay)}ms 후 다음 복구 시도 예정...`);
+    reconnectTimer = setTimeout(tryRecoverContext, delay);
 }
 
 // 스크립트 초기화 실행
