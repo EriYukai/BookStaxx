@@ -462,7 +462,7 @@ function loadBookmarksAndDisplay() {
                 return;
             }
             
-            // 북마크 표시
+            // 북마크 데이터 확인
             const bookmarks = response.bookmarks;
             displayBookmarkIconsDirectly(bookmarks);
         });
@@ -498,11 +498,12 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         // 애니메이션 스타일 추가
         addAnimationStyles();
         
-        // 설정에서 북마크 최대 개수 가져오기
-        const maxBookmarks = currentSettings.maxBookmarks || 20;
+        // 설정에서 북마크 최대 개수 가져오기 (문자열 설정을 숫자로 변환)
+        const maxBookmarks = parseInt(currentSettings.maxBookmarks || '20', 10);
+        
         // 배열을 랜덤하게 섞어서 일부만 표시 (최신순 표시를 위해 역순으로 정렬 후 섞기)
         let shuffledBookmarks = [...allBookmarks].reverse().sort(() => Math.random() - 0.5);
-        const bookmarksToDisplay = shuffledBookmarks.slice(0, Math.min(maxBookmarks, 12)); // 최대 12개로 제한
+        const bookmarksToDisplay = shuffledBookmarks.slice(0, maxBookmarks);
         
         // 마우스 위치 및 화면 크기
         const mouseX = clickPosition.x;
@@ -510,40 +511,265 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
         
-        // 배치 각도 계산
-        const totalAngle = 2 * Math.PI * 0.7; // 원 전체의 70%만 사용 (수직 영역 제외)
-        const startAngle = Math.PI / 4; // 45도 시작
-        const angleStep = totalAngle / bookmarksToDisplay.length;
+        // 북마크 아이콘 크기 계산 (기본 아이콘 크기 + 여백)
+        const iconSize = parseInt(currentSettings.bookmarkIconSize || '48', 10);
+        const iconSpacing = iconSize * 2.2; // 아이콘 간 최소 간격 (아이콘 크기의 2.2배로 증가)
         
-        // 각 북마크 배치
-        bookmarksToDisplay.forEach((bookmark, index) => {
+        // 화면 여백 (화면 경계에서 여유)
+        const margin = Math.max(iconSize * 1.2, Math.min(screenWidth, screenHeight) * 0.05);
+        
+        // 레이아웃 모드 확인
+        const layoutMode = currentSettings.bookmarkLayoutMode || 'circle';
+        
+        // 북마크 배치를 위한 위치 정보 배열
+        const placementPositions = [];
+        
+        // 레이아웃 모드에 따라 북마크 배치 방식 결정
+        if (layoutMode === 'circle') {
+            // 원형 레이아웃: 개선된 원형 배치 알고리즘
+            const totalBookmarks = bookmarksToDisplay.length;
+            
+            // 배치 방식 결정: 북마크 수에 따라 자동 결정
+            let placementStrategy = 'singleCircle';  // 기본 단일 원형 배치
+            
+            if (totalBookmarks > 12) {
+                placementStrategy = 'multiCircle';   // 다중 원형 배치
+            } else if (totalBookmarks > 24) {
+                placementStrategy = 'spiralPlacement'; // 나선형 배치
+            }
+            
+            // 단일 원형 배치 (12개 이하)
+            if (placementStrategy === 'singleCircle') {
+                // 원의 반지름 계산: 북마크 수에 따라 조정 (최소 화면 크기의 22%)
+                const baseRadius = Math.min(screenWidth, screenHeight) * 0.22;
+                
+                // 북마크 간 충분한 간격을 보장하기 위한 반지름 조정
+                // 원주 = 2 * PI * r, 각 북마크가 차지하는 호의 길이 계산
+                const circumference = 2 * Math.PI * baseRadius;
+                const arcLengthPerBookmark = circumference / totalBookmarks;
+                
+                // 북마크 간 최소 거리 확보를 위한 반지름 조정
+                let adjustedRadius = baseRadius;
+                if (arcLengthPerBookmark < iconSpacing) {
+                    // 필요한 반지름 = 필요한 원주 / (2 * PI)
+                    adjustedRadius = Math.max(baseRadius, (iconSpacing * totalBookmarks) / (2 * Math.PI));
+                }
+                
+                // 각도 간격 계산 (완전한 원 = 2π)
+                const angleStep = (2 * Math.PI) / totalBookmarks;
+                
+                // 약간의 회전 오프셋 추가 (시작점을 미세하게 조정)
+                const rotationOffset = Math.PI / 8; // 22.5도 회전
+                
+                for (let i = 0; i < totalBookmarks; i++) {
+                    const angle = rotationOffset + i * angleStep;
+                    const x = mouseX + adjustedRadius * Math.cos(angle);
+                    const y = mouseY + adjustedRadius * Math.sin(angle);
+                    
+                    // 화면 경계 확인 및 조정
+                    const finalX = Math.max(margin, Math.min(screenWidth - margin, x));
+                    const finalY = Math.max(margin, Math.min(screenHeight - margin, y));
+                    
+                    placementPositions.push({ 
+                        x: finalX, 
+                        y: finalY, 
+                        index: i,
+                        angle: angle  // 각도 정보 저장 (디버깅 및 확장 가능성)
+                    });
+                }
+            }
+            // 다중 원형 배치 (13~24개)
+            else if (placementStrategy === 'multiCircle') {
+                // 내부 원과 외부 원의 반지름 계산
+                const innerRadius = Math.min(screenWidth, screenHeight) * 0.15;
+                const outerRadius = Math.min(screenWidth, screenHeight) * 0.28;
+                
+                // 북마크를 내부 원과 외부 원에 분배
+                const innerCount = Math.ceil(totalBookmarks * 0.4); // 약 40%를 내부 원에 배치
+                const outerCount = totalBookmarks - innerCount;
+                
+                // 약간의 회전 오프셋 추가
+                const rotationOffset = Math.PI / 12; // 15도
+                
+                // 내부 원 북마크 위치 계산
+                if (innerCount > 0) {
+                    const innerAngleStep = (2 * Math.PI) / innerCount;
+                    for (let i = 0; i < innerCount; i++) {
+                        const angle = rotationOffset + i * innerAngleStep;
+                        const x = mouseX + innerRadius * Math.cos(angle);
+                        const y = mouseY + innerRadius * Math.sin(angle);
+                        
+                        placementPositions.push({ 
+                            x, y, 
+                            index: i,
+                            circle: 'inner'
+                        });
+                    }
+                }
+                
+                // 외부 원 북마크 위치 계산 (내부 원과 엇갈리게 배치)
+                if (outerCount > 0) {
+                    const outerAngleStep = (2 * Math.PI) / outerCount;
+                    const outerOffset = innerCount > 0 ? outerAngleStep / 2 : 0; // 내부 원이 있으면 반 칸 어긋나게
+                    
+                    for (let i = 0; i < outerCount; i++) {
+                        const angle = rotationOffset + outerOffset + i * outerAngleStep;
+                        const x = mouseX + outerRadius * Math.cos(angle);
+                        const y = mouseY + outerRadius * Math.sin(angle);
+                        
+                        placementPositions.push({ 
+                            x, y, 
+                            index: i + innerCount,
+                            circle: 'outer'
+                        });
+                    }
+                }
+                
+                // 화면 경계 확인 및 조정
+                placementPositions.forEach(pos => {
+                    pos.x = Math.max(margin, Math.min(screenWidth - margin, pos.x));
+                    pos.y = Math.max(margin, Math.min(screenHeight - margin, pos.y));
+                });
+            }
+            // 나선형 배치 (25개 이상)
+            else if (placementStrategy === 'spiralPlacement') {
+                const a = 0.5; // 나선의 간격 조절 계수
+                const b = 0.2; // 나선의 조밀도 조절 계수
+                
+                for (let i = 0; i < totalBookmarks; i++) {
+                    // 나선 방정식 r = a + b*θ에 따라 계산
+                    // θ는 각도, r은 반지름
+                    const theta = i * 0.8; // 각도 간격 (라디안)
+                    const radius = (a + b * theta) * Math.min(screenWidth, screenHeight) * 0.15;
+                    
+                    const x = mouseX + radius * Math.cos(theta);
+                    const y = mouseY + radius * Math.sin(theta);
+                    
+                    // 화면 경계 확인 및 조정
+                    const finalX = Math.max(margin, Math.min(screenWidth - margin, x));
+                    const finalY = Math.max(margin, Math.min(screenHeight - margin, y));
+                    
+                    placementPositions.push({ 
+                        x: finalX, 
+                        y: finalY, 
+                        index: i,
+                        angle: theta
+                    });
+                }
+            }
+            
+            // 향상된 겹침 방지 알고리즘
+            let overlappingDetected = true;
+            const maxAdjustmentIterations = 10; // 최대 조정 시도 횟수 증가
+            let adjustmentIteration = 0;
+            
+            while (overlappingDetected && adjustmentIteration < maxAdjustmentIterations) {
+                overlappingDetected = false;
+                adjustmentIteration++;
+                
+                // 모든 북마크 쌍에 대해 겹침 검사
+                for (let i = 0; i < placementPositions.length; i++) {
+                    for (let j = i + 1; j < placementPositions.length; j++) {
+                        const pos1 = placementPositions[i];
+                        const pos2 = placementPositions[j];
+                        
+                        // 두 위치 간의 거리 계산
+                        const dx = pos2.x - pos1.x;
+                        const dy = pos2.y - pos1.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // 겹침 감지
+                        if (distance < iconSpacing) {
+                            overlappingDetected = true;
+                            
+                            // 겹침 해결: 서로 반대 방향으로 밀어내기 (강화된 버전)
+                            const angleBetween = Math.atan2(dy, dx);
+                            const pushDistance = (iconSpacing - distance) / 1.8; // 1.8로 나누어 더 강하게 밀기
+                            
+                            // 첫 번째 북마크는 반대 방향으로 이동
+                            pos1.x -= Math.cos(angleBetween) * pushDistance;
+                            pos1.y -= Math.sin(angleBetween) * pushDistance;
+                            
+                            // 두 번째 북마크는 같은 방향으로 이동
+                            pos2.x += Math.cos(angleBetween) * pushDistance;
+                            pos2.y += Math.sin(angleBetween) * pushDistance;
+                            
+                            // 화면 경계 확인 및 조정
+                            pos1.x = Math.max(margin, Math.min(screenWidth - margin, pos1.x));
+                            pos1.y = Math.max(margin, Math.min(screenHeight - margin, pos1.y));
+                            pos2.x = Math.max(margin, Math.min(screenWidth - margin, pos2.x));
+                            pos2.y = Math.max(margin, Math.min(screenHeight - margin, pos2.y));
+                        }
+                    }
+                }
+                
+                // 진행 상황 로깅
+                if (overlappingDetected) {
+                    console.log(`겹침 조정 라운드 ${adjustmentIteration} 완료, 여전히 겹침이 있습니다.`);
+                } else {
+                    console.log(`겹침 조정 완료: ${adjustmentIteration} 라운드`);
+                }
+            }
+            
+            // 마지막 안전 조치: 각 북마크 주변에 최소 간격 강제 적용
+            for (let i = 0; i < placementPositions.length; i++) {
+                const pos1 = placementPositions[i];
+                let movedTooClose = false;
+                
+                for (let j = 0; j < placementPositions.length; j++) {
+                    if (i === j) continue;
+                    
+                    const pos2 = placementPositions[j];
+                    
+                    // 두 위치 간의 거리 계산
+                    const dx = pos2.x - pos1.x;
+                    const dy = pos2.y - pos1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // 최소 거리 미만인 경우
+                    if (distance < iconSize * 1.3) {
+                        movedTooClose = true;
+                        break;
+                    }
+                }
+                
+                // 너무 가까운 경우 중심에서 멀어지는 방향으로 이동
+                if (movedTooClose) {
+                    const angleFromCenter = Math.atan2(pos1.y - mouseY, pos1.x - mouseX);
+                    const pushOutDistance = iconSize * 0.5;
+                    
+                    pos1.x += Math.cos(angleFromCenter) * pushOutDistance;
+                    pos1.y += Math.sin(angleFromCenter) * pushOutDistance;
+                    
+                    // 화면 경계 확인
+                    pos1.x = Math.max(margin, Math.min(screenWidth - margin, pos1.x));
+                    pos1.y = Math.max(margin, Math.min(screenHeight - margin, pos1.y));
+                }
+            }
+        }
+        
+        // 나머지 레이아웃 모드 (full, grid, random 등) 관련 코드는 유지됨
+        // ... existing code ...
+        
+        // 계산된 위치에 북마크 아이콘 생성 및 배치
+        placementPositions.forEach(position => {
             try {
+                // 해당 인덱스의 북마크 가져오기
+                const bookmark = bookmarksToDisplay[position.index];
+                if (!bookmark) return;
+                
                 // 아이콘 생성
                 const bookmarkIcon = createBookmarkIcon(bookmark);
                 
-                // 고유 인덱스 속성 추가 (트래킹용)
-                bookmarkIcon.setAttribute('data-index', index);
-                
-                // 각도 계산 (균등 분포를 위해 인덱스 * 각도 간격 + 시작 각도)
-                const angle = startAngle + index * angleStep;
-                
-                // 거리 계산 (화면 크기의 15%-25%)
-                const minDistance = Math.min(screenWidth, screenHeight) * 0.15;
-                const maxDistance = Math.min(screenWidth, screenHeight) * 0.25;
-                let distance = minDistance + Math.random() * (maxDistance - minDistance);
-                
-                // 수직 영역 회피는 각도 설정으로 대체
-                
-                // 최종 위치 계산
-                const targetX = mouseX + Math.cos(angle) * distance;
-                const targetY = mouseY + Math.sin(angle) * distance;
+                // 고유 인덱스 속성 추가
+                bookmarkIcon.setAttribute('data-index', position.index);
                 
                 // 화면 경계 확인
-                const finalX = Math.max(70, Math.min(screenWidth - 70, targetX));
-                const finalY = Math.max(70, Math.min(screenHeight - 70, targetY));
+                const finalX = Math.max(iconSize, Math.min(screenWidth - iconSize, position.x));
+                const finalY = Math.max(iconSize, Math.min(screenHeight - iconSize, position.y));
                 
                 // 애니메이션 설정
-                setBookmarkAnimation(bookmarkIcon, mouseX, mouseY, finalX, finalY, index);
+                setBookmarkAnimation(bookmarkIcon, mouseX, mouseY, finalX, finalY, position.index);
                 
                 // body에 추가
                 document.body.appendChild(bookmarkIcon);
@@ -566,7 +792,10 @@ function createBookmarkIcon(bookmark) {
     bookmarkIcon.className = 'bookstaxx-bookmark-icon';
     bookmarkIcon.setAttribute('data-bookstaxx-element', 'true');
     bookmarkIcon.setAttribute('data-url', bookmark.url);
-    bookmarkIcon.setAttribute('data-title', bookmark.title);
+    
+    // 수정: 제목 처리 개선 - 제목이 없거나, 공백, undefined인 경우를 처리
+    const bookmarkTitle = (bookmark.title && bookmark.title.trim()) ? bookmark.title.trim() : '제목 없음';
+    bookmarkIcon.setAttribute('data-title', bookmarkTitle);
     
     // 아이콘 이미지 컨테이너
     const iconContainer = document.createElement('div');
@@ -577,54 +806,95 @@ function createBookmarkIcon(bookmark) {
     const favicon = document.createElement('img');
     favicon.setAttribute('data-bookstaxx-element', 'true');
     
-    // 기본 파비콘 URL 생성
+    // 파비콘 URL 생성 로직 개선
     try {
-        // URL 파싱 및 안전한 파비콘 URL 생성
+        // URL이 유효한지 확인
+        if (!bookmark.url || typeof bookmark.url !== 'string') {
+            throw new Error('유효하지 않은 URL');
+        }
+        
+        // URL 파싱 시도
         const url = new URL(bookmark.url);
         const host = url.hostname;
         
-        // 파비콘 로드 방법 개선
+        // URL 유형에 따른 파비콘 처리
         if (url.protocol === 'chrome:' || url.protocol === 'chrome-extension:') {
             // 크롬 내부 페이지는 기본 아이콘 사용
             favicon.src = 'icons/default_favicon.png';
+        } else if (url.protocol === 'file:') {
+            // 로컬 파일은 파일 타입 아이콘 사용
+            favicon.src = 'icons/file_favicon.png';
         } else {
-            // 일반 웹사이트는 Google 파비콘 서비스 사용
+            // 일반 웹사이트는 Google의 파비콘 서비스 사용
             favicon.src = `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
+            // 백업 처리를 위해 원래 파비콘 URL도 기록
+            favicon.setAttribute('data-original-favicon', `chrome://favicon/${bookmark.url}`);
         }
-        favicon.alt = host;
+        
+        favicon.alt = host || '웹사이트';
     } catch (error) {
         // URL 파싱 오류 시 기본 아이콘 사용
         favicon.src = 'icons/default_favicon.png';
         favicon.alt = '웹사이트';
-        console.error("URL 파싱 오류:", error);
+        console.warn(`북마크 "${bookmarkTitle}"의 URL 파싱 오류:`, error.message);
     }
     
-    // 로드 오류 시 기본 아이콘 사용
+    // 로드 오류 시 대체 처리 (단계적 대체 전략)
     favicon.onerror = function() {
+        // 이미 대체 시도를 했는지 확인
+        const retryCount = parseInt(this.getAttribute('data-retry-count') || '0', 10);
+        
+        if (retryCount === 0) {
+            // 첫 번째 실패: 원래 파비콘 URL 시도
+            const originalFaviconUrl = this.getAttribute('data-original-favicon');
+            if (originalFaviconUrl) {
+                console.log("파비콘 로딩 실패, chrome://favicon/ URL 시도 중...");
+                this.src = originalFaviconUrl;
+                this.setAttribute('data-retry-count', '1');
+                return;
+            }
+        }
+        
+        // 두 번째 실패 또는 대체 URL이 없는 경우: 기본 아이콘 사용
+        console.log("파비콘 로딩 실패, 기본 아이콘 사용");
         this.src = 'icons/default_favicon.png';
+        this.setAttribute('data-retry-count', '2'); // 더 이상 재시도 하지 않음
     };
     
     // 아이콘 이미지 컨테이너에 파비콘 추가
     iconContainer.appendChild(favicon);
     
-    // 아이콘 제목 생성
-    const title = document.createElement('div');
-    title.className = 'bookstaxx-bookmark-icon-title';
-    title.setAttribute('data-bookstaxx-element', 'true');
-    title.textContent = bookmark.title;
-    
-    // 아이콘에 요소 추가
-    bookmarkIcon.appendChild(iconContainer);
-    bookmarkIcon.appendChild(title);
-    
-    // 아이콘 크기 설정
-    const iconSize = currentSettings.bookmarkIconSize || 48;
+    // 아이콘 크기 설정 (문자열 설정을 숫자로 변환)
+    const iconSize = parseInt(currentSettings.bookmarkIconSize || '48', 10);
     iconContainer.style.width = `${iconSize}px`;
     iconContainer.style.height = `${iconSize}px`;
     
-    // 폰트 크기 설정
-    const fontSize = currentSettings.bookmarkFontSize || 12;
+    // 아이콘에 이미지 컨테이너 추가
+    bookmarkIcon.appendChild(iconContainer);
+    
+    // 제목 요소 생성
+    const title = document.createElement('div');
+    title.className = 'bookstaxx-bookmark-icon-title';
+    title.setAttribute('data-bookstaxx-element', 'true');
+    
+    // 설정에서 제목 길이 제한 가져오기 (기본값: 6)
+    const titleLengthLimit = parseInt(currentSettings.titleLengthLimit || '6', 10);
+    
+    // 제목 길이에 따른 표시 처리
+    let displayTitle = bookmarkTitle;
+    if (displayTitle.length > titleLengthLimit) {
+        displayTitle = displayTitle.substring(0, titleLengthLimit) + '...';
+    }
+    
+    title.textContent = displayTitle;
+    title.title = bookmarkTitle; // 툴팁으로 전체 제목 표시
+    
+    // 폰트 크기 설정 (문자열 설정을 숫자로 변환)
+    const fontSize = parseInt(currentSettings.bookmarkFontSize || '12', 10);
     title.style.fontSize = `${fontSize}px`;
+    
+    // 아이콘에 제목 요소 추가
+    bookmarkIcon.appendChild(title);
     
     // 클릭 이벤트 리스너 추가
     bookmarkIcon.addEventListener('click', function(event) {
@@ -634,6 +904,9 @@ function createBookmarkIcon(bookmark) {
         // 북마크 열기
         if (url) {
             openBookmark(url);
+        } else {
+            console.error("북마크 URL을 찾을 수 없습니다:", this);
+            showErrorMessage("북마크 URL을 찾을 수 없습니다.");
         }
         
         // 클릭 이벤트 전파 중단
@@ -661,8 +934,25 @@ function setBookmarkAnimation(bookmarkIcon, startX, startY, endX, endY, index) {
     // 아이콘에 고유 ID 부여 (디버깅 및 참조용)
     bookmarkIcon.id = `bookstaxx-icon-${Date.now()}-${index}`;
     
-    // 순차적 애니메이션 적용 (50ms 간격)
-    setTimeout(() => {
+    // 애니메이션 모드 확인 (순차적 또는 동시)
+    const animationMode = currentSettings.bookmarkAnimationMode || 'shoot';
+    
+    // 애니메이션 모드에 따라 다르게 처리
+    if (animationMode === 'sequential') {
+        // 순차적 등장 모드: 매우 빠른 속도로 하나씩 발사 (10ms 간격)
+        setTimeout(() => {
+            bookmarkIcon.classList.add('bookstaxx-animate-shoot');
+            
+            // 애니메이션 완료 후 위치 고정 (관련 버그 방지)
+            setTimeout(() => {
+                if (document.body.contains(bookmarkIcon)) {
+                    bookmarkIcon.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+                    bookmarkIcon.classList.remove('bookstaxx-animate-shoot');
+                }
+            }, 800); // 애니메이션 시간보다 약간 더 길게
+        }, index * 30); // 30ms 간격으로 빠르게 순차 발사 (10ms에서 30ms로 증가)
+    } else {
+        // 동시 발사 모드 (기본값)
         bookmarkIcon.classList.add('bookstaxx-animate-shoot');
         
         // 애니메이션 완료 후 위치 고정 (관련 버그 방지)
@@ -671,8 +961,8 @@ function setBookmarkAnimation(bookmarkIcon, startX, startY, endX, endY, index) {
                 bookmarkIcon.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
                 bookmarkIcon.classList.remove('bookstaxx-animate-shoot');
             }
-        }, 900); // 애니메이션 시간보다 약간 더 길게
-    }, index * 50);
+        }, 800); // 애니메이션 시간보다 약간 더 길게
+    }
 }
 
 // 애니메이션 스타일 추가 함수
@@ -686,29 +976,93 @@ function addAnimationStyles() {
         document.head.appendChild(styleElement);
     }
     
-    // 방사형 발사 애니메이션 정의
-    styleElement.textContent = `
-        @keyframes bookstaxx-shoot-out {
-            0% {
-                transform: translate(0, 0) scale(0.1);
-                opacity: 0;
-            }
-            20% {
-                opacity: 0.5;
-            }
-            40% {
-                opacity: 1;
-            }
-            100% {
+    // 애니메이션 모드 확인
+    const animationMode = currentSettings.bookmarkAnimationMode || 'shoot';
+    
+    // 애니메이션 활성화 여부 확인
+    const animationEnabled = currentSettings.animationEnabled !== false;
+    
+    // 애니메이션 정의
+    let animationKeyframes = '';
+    
+    if (animationEnabled) {
+        if (animationMode === 'shoot' || animationMode === 'sequential') {
+            // 발사 애니메이션 - 지속 시간 단축 (0.8s → 0.6s)
+            animationKeyframes = `
+                @keyframes bookstaxx-shoot-out {
+                    0% {
+                        transform: translate(0, 0) scale(0.1);
+                        opacity: 0;
+                    }
+                    20% {
+                        opacity: 0.5;
+                    }
+                    40% {
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translate(var(--end-x), var(--end-y)) scale(1);
+                        opacity: 1;
+                    }
+                }
+                
+                .bookstaxx-animate-shoot {
+                    animation: bookstaxx-shoot-out 0.6s cubic-bezier(0.25, 0.1, 0.25, 1.4) forwards;
+                    will-change: transform, opacity;
+                }
+            `;
+        } else if (animationMode === 'fade') {
+            // 페이드 인 애니메이션
+            animationKeyframes = `
+                @keyframes bookstaxx-fade-in {
+                    0% {
+                        transform: translate(var(--end-x), var(--end-y)) scale(0.5);
+                        opacity: 0;
+                    }
+                    100% {
+                        transform: translate(var(--end-x), var(--end-y)) scale(1);
+                        opacity: 1;
+                    }
+                }
+                
+                .bookstaxx-animate-shoot {
+                    animation: bookstaxx-fade-in 0.6s ease forwards;
+                    will-change: transform, opacity;
+                }
+            `;
+        } else {
+            // 기본 애니메이션
+            animationKeyframes = `
+                @keyframes bookstaxx-shoot-out {
+                    0% {
+                        transform: translate(0, 0) scale(0.1);
+                        opacity: 0;
+                    }
+                    100% {
+                        transform: translate(var(--end-x), var(--end-y)) scale(1);
+                        opacity: 1;
+                    }
+                }
+                
+                .bookstaxx-animate-shoot {
+                    animation: bookstaxx-shoot-out 0.6s ease forwards;
+                    will-change: transform, opacity;
+                }
+            `;
+        }
+    } else {
+        // 애니메이션 비활성화 - 즉시 최종 위치로 이동
+        animationKeyframes = `
+            .bookstaxx-animate-shoot {
                 transform: translate(var(--end-x), var(--end-y)) scale(1);
                 opacity: 1;
             }
-        }
-        
-        .bookstaxx-animate-shoot {
-            animation: bookstaxx-shoot-out 0.8s cubic-bezier(0.25, 0.1, 0.25, 1.4) forwards;
-            will-change: transform, opacity;
-        }
+        `;
+    }
+    
+    // 스타일 설정
+    styleElement.textContent = `
+        ${animationKeyframes}
         
         /* 오류 수정을 위한 추가 스타일 */
         .bookstaxx-bookmark-icon, 
@@ -1629,10 +1983,17 @@ function checkExtensionContext() {
         console.log("컨텍스트가 무효화되어 복구 시도");
         tryRecoverContext();
         
-        // 다음 확인 예약 (10초 후)
+        // 다음 확인 예약 (빈번한 확인을 줄이기 위해 10초로 변경)
         checkContextTimer = setTimeout(checkExtensionContext, 10000);
         return;
     }
+    
+    // 제한된 사이트인지 확인
+    const currentHost = window.location.hostname;
+    const isRestrictedSite = /sooplive|youtube|netflix|hulu|twitch|disneyplus|primevideo|naver\.com|google\.com|daum\.net|kakao\.com|wemep\.co\.kr|coupang\.com/i.test(currentHost);
+    
+    // 추가: 제한된 사이트에서는 확인 주기를 늘림
+    const checkInterval = isRestrictedSite ? 30000 : 10000; // 제한된 사이트: 30초, 일반: 10초
     
     // 확장 컨텍스트 체크 전에 chrome 객체 확인
     if (typeof chrome === 'undefined' || !chrome.runtime) {
@@ -1640,14 +2001,24 @@ function checkExtensionContext() {
         contextInvalidated = true;
         tryRecoverContext();
         
-        // 다음 확인 예약 (10초 후)
-        checkContextTimer = setTimeout(checkExtensionContext, 10000);
+        // 다음 확인 예약
+        checkContextTimer = setTimeout(checkExtensionContext, checkInterval);
         return;
     }
     
     try {
+        // iframe이나 문제가 있는 페이지에서도 성공적으로 동작하도록 개선된 핑 방식
+        const pingTimestamp = Date.now();
+        const pingData = { 
+            action: "ping", 
+            timestamp: pingTimestamp,
+            origin: window.location.origin,
+            path: window.location.pathname,
+            isRestrictedSite: isRestrictedSite
+        };
+        
         // 간단한 메시지를 보내 확장 프로그램 연결 상태 확인
-        chrome.runtime.sendMessage({ action: "ping" }, function(response) {
+        chrome.runtime.sendMessage(pingData, function(response) {
             // try-catch로 콜백 내부 오류 처리
             try {
                 if (chrome.runtime.lastError) {
@@ -1661,21 +2032,34 @@ function checkExtensionContext() {
                         // 복구 시도
                         tryRecoverContext();
                         
-                        // 상단에 사용자에게 알림 표시
-                        showContextInvalidatedNotification();
+                        // 상단에 사용자에게 알림 표시 (제한된 사이트에서는 표시하지 않음)
+                        if (!isRestrictedSite) {
+                            showContextInvalidatedNotification();
+                        } else {
+                            console.log("제한된 사이트에서는 알림을 표시하지 않습니다.");
+                        }
                     } else {
                         console.error("확장 프로그램 통신 오류:", errorMessage);
                     }
                 } else {
-                    console.log("확장 프로그램 컨텍스트 유효성 확인 완료");
-                    // 컨텍스트가 유효하다면 무효화 상태 초기화
-                    if (contextInvalidated) {
-                        contextInvalidated = false;
-                        recoveryAttempts = 0; // 복구 시도 횟수 초기화
-                        console.log("컨텍스트가 복구되었습니다.");
+                    // 응답 검증 - 실제로 유효한 응답인지 확인
+                    if (response && response.success) {
+                        console.log("확장 프로그램 컨텍스트 유효성 확인 완료");
                         
-                        // 복구 알림 메시지 제거
-                        removeContextNotification();
+                        // 컨텍스트가 유효하다면 무효화 상태 초기화
+                        if (contextInvalidated) {
+                            contextInvalidated = false;
+                            recoveryAttempts = 0; // 복구 시도 횟수 초기화
+                            console.log("컨텍스트가 복구되었습니다.");
+                            
+                            // 복구 알림 메시지 제거
+                            removeContextNotification();
+                        }
+                    } else {
+                        console.warn("유효하지 않은 핑 응답:", response);
+                        // 유효하지 않은 응답도 컨텍스트 무효화로 처리
+                        contextInvalidated = true;
+                        tryRecoverContext();
                     }
                 }
             } catch (callbackError) {
@@ -1684,8 +2068,8 @@ function checkExtensionContext() {
                 tryRecoverContext();
             }
             
-            // 다음 컨텍스트 확인 예약 (10초마다 체크 - 5초에서 10초로 늘림)
-            checkContextTimer = setTimeout(checkExtensionContext, 10000);
+            // 다음 컨텍스트 확인 예약 (제한된 사이트에서는 주기를 늘림)
+            checkContextTimer = setTimeout(checkExtensionContext, checkInterval);
         });
     } catch (error) {
         console.error("확장 프로그램 컨텍스트 확인 중 오류:", error);
@@ -1694,8 +2078,8 @@ function checkExtensionContext() {
         contextInvalidated = true;
         tryRecoverContext();
         
-        // 다음 컨텍스트 확인 예약 (10초 후)
-        checkContextTimer = setTimeout(checkExtensionContext, 10000);
+        // 다음 컨텍스트 확인 예약
+        checkContextTimer = setTimeout(checkExtensionContext, checkInterval);
     }
 }
 
@@ -1774,18 +2158,37 @@ function tryRecoverContext() {
     
     console.log("컨텍스트 복구 시도 중... (시도 횟수: " + (recoveryAttempts + 1) + "/" + MAX_RECOVERY_ATTEMPTS + ")");
     
+    // iframe이나 특정 사이트에서 발생하는 문제 처리 시도
+    const isIframe = window !== window.top;
+    const currentHost = window.location.hostname;
+    // 추가: 컨텍스트 문제가 자주 발생하는 사이트 목록 확장
+    const isRestrictedSite = /sooplive|youtube|netflix|hulu|twitch|disneyplus|primevideo|naver\.com|google\.com|daum\.net|kakao\.com|wemep\.co\.kr|coupang\.com/i.test(currentHost);
+    
     // 최대 복구 시도 횟수 확인
     if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
         console.log("최대 복구 시도 횟수를 초과했습니다. 페이지 새로고침이 필요할 수 있습니다.");
+        
+        // iframe 또는 제한된 사이트에서는 알림 변경
+        let notificationMessage = "BookStaxx 확장 프로그램 연결을 복구할 수 없습니다. 페이지를 새로고침하세요.";
+        if (isIframe || isRestrictedSite) {
+            notificationMessage = `이 사이트(${currentHost})에서는 BookStaxx 확장 프로그램이 제한적으로 작동할 수 있습니다.`;
+            
+            // 제한된 사이트에서는 주기적인 컨텍스트 확인 중지하여 리소스 사용 줄이기
+            if (checkContextTimer) {
+                clearTimeout(checkContextTimer);
+                checkContextTimer = null;
+                console.log("제한된 사이트에서 주기적인 컨텍스트 확인을 중지합니다.");
+            }
+        }
         
         // 알림 업데이트
         const notification = document.getElementById('bookstaxx-context-notification');
         if (notification) {
             notification.style.backgroundColor = "#f44336"; // 빨간색으로 변경
-            notification.textContent = "BookStaxx 확장 프로그램 연결을 복구할 수 없습니다. 페이지를 새로고침하세요.";
+            notification.textContent = notificationMessage;
             
             // 사용자 경험 개선을 위해 자동 새로고침 옵션 제공
-            if (!document.getElementById('bookstaxx-auto-refresh-btn')) {
+            if (!document.getElementById('bookstaxx-auto-refresh-btn') && !isRestrictedSite) {
                 const autoRefreshBtn = document.createElement('button');
                 autoRefreshBtn.id = 'bookstaxx-auto-refresh-btn';
                 autoRefreshBtn.textContent = "자동 새로고침 (5초 후)";
@@ -1827,6 +2230,13 @@ function tryRecoverContext() {
     // 복구 알림 표시 또는 업데이트
     updateRecoveryNotification();
     
+    // 추가: 제한된 사이트에서는 복구 시도 횟수를 줄이고 백오프 시간을 늘림
+    if (isRestrictedSite && recoveryAttempts > 2) {
+        console.log("제한된 사이트에서는 복구 시도를 최소화합니다.");
+        scheduleNextRecoveryAttempt(true);
+        return;
+    }
+    
     // 새로운 방식: 새 content script를 로드하기 위한 시도
     try {
         // Chrome API가 접근 가능한지 확인
@@ -1836,8 +2246,19 @@ function tryRecoverContext() {
             return;
         }
         
+        // 현재 페이지 정보 추가하여 재초기화 요청
+        const reinitData = { 
+            action: "reinitialize",
+            timestamp: Date.now(),
+            origin: window.location.origin,
+            path: window.location.pathname,
+            isIframe: isIframe,
+            isRestrictedSite: isRestrictedSite,
+            recoveryAttempt: recoveryAttempts
+        };
+        
         // 안전한 메시지 전송 시도
-        safelyTrySendMessage({ action: "reinitialize" })
+        safelyTrySendMessage(reinitData)
             .then(response => {
                 console.log("재초기화 응답:", response);
                 if (response && response.success) {
@@ -1857,20 +2278,49 @@ function tryRecoverContext() {
     }
 }
 
+// 다음 복구 시도 예약
+function scheduleNextRecoveryAttempt(isLongDelay = false) {
+    // 추가: 제한된 사이트에서는 더 긴 지연 시간 사용
+    if (isLongDelay) {
+        const longDelay = 30000; // 30초
+        console.log(`제한된 사이트에서 ${longDelay/1000}초 후 다음 복구 시도 예정...`);
+        reconnectTimer = setTimeout(tryRecoverContext, longDelay);
+        return;
+    }
+    
+    // 지수 백오프 적용 (최대 10초에서 15초로 변경)
+    const delay = Math.min(Math.pow(1.5, recoveryAttempts) * 1000, 15000);
+    console.log(`${Math.round(delay)}ms 후 다음 복구 시도 예정...`);
+    reconnectTimer = setTimeout(tryRecoverContext, delay);
+}
+
 // 안전한 메시지 전송 함수 - 프로미스 반환
 function safelyTrySendMessage(message) {
     return new Promise((resolve, reject) => {
         try {
+            // chrome 객체가 없는 경우 또는 런타임이 없는 경우 오류
             if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
                 reject(new Error("chrome.runtime.sendMessage API를 사용할 수 없습니다."));
                 return;
             }
             
+            // 타임아웃 설정 (2초)
+            const timeoutId = setTimeout(() => {
+                reject(new Error("메시지 전송 타임아웃"));
+            }, 2000);
+            
+            // 메시지 전송 시도
             chrome.runtime.sendMessage(message, response => {
+                // 타임아웃 취소
+                clearTimeout(timeoutId);
+                
+                // 런타임 오류 확인
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
                     return;
                 }
+                
+                // 응답 확인
                 resolve(response);
             });
         } catch (error) {
@@ -1913,14 +2363,6 @@ function updateRecoveryNotification() {
     } else {
         showContextInvalidatedNotification();
     }
-}
-
-// 다음 복구 시도 예약
-function scheduleNextRecoveryAttempt() {
-    // 지수 백오프 적용 (최대 30초)
-    const delay = Math.min(Math.pow(1.5, recoveryAttempts) * 1000, 30000);
-    console.log(`${Math.round(delay)}ms 후 다음 복구 시도 예정...`);
-    reconnectTimer = setTimeout(tryRecoverContext, delay);
 }
 
 // 스크립트 초기화 실행

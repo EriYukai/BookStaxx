@@ -23,6 +23,36 @@ let isInitialized = false;
 const CONTEXT_MENU_ID = "bookstaxx-showBookmarkBar";
 let contextMenuCreated = false;
 
+// 설정 기본값
+const DEFAULT_SETTINGS = {
+    maxBookmarks: 20,
+    openInNewTab: true,
+    focusNewTab: true,
+    autoCloseAfterSelect: true,
+    bookmarkIconSize: 48,
+    bookmarkFontSize: 12,
+    bookmarkLayoutMode: 'circle',
+    titleLengthLimit: 6
+};
+
+// 활성 상태 탭 ID 추적
+let activeTabId = null;
+
+// 컨텍스트 무효화 추적 객체
+const invalidatedContexts = {};
+
+// 향상된 디버깅을 위한 로그 함수
+function logDebug(message, data) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[BookStaxx ${timestamp}] ${message}`;
+    
+    if (data) {
+        console.log(logMessage, data);
+    } else {
+        console.log(logMessage);
+    }
+}
+
 // 초기화 함수
 function initialize() {
   return new Promise((resolve, reject) => {
@@ -145,7 +175,38 @@ function createContextMenu() {
 
 // 확장 프로그램 설치/업데이트 시 실행
 chrome.runtime.onInstalled.addListener(function(details) {
-  console.log("BookStaxx 확장 프로그램이 설치/업데이트되었습니다. 이유:", details.reason);
+  logDebug("확장 프로그램 설치/업데이트 감지:", details.reason);
+  
+  // 기본 설정 저장
+  chrome.storage.sync.get('settings', function(data) {
+    if (!data.settings) {
+      // 설정이 없는 경우 기본값 저장
+      chrome.storage.sync.set({ settings: DEFAULT_SETTINGS }, function() {
+        logDebug("기본 설정이 저장되었습니다");
+      });
+    }
+  });
+  
+  // 업데이트 또는 설치 시 옵션 페이지 열기 여부 확인
+  if (details.reason === "install") {
+    // 확장 프로그램 첫 설치 시 옵션 페이지 열기
+    chrome.tabs.create({ url: "options.html" });
+    logDebug("첫 설치로 인해 옵션 페이지가 열렸습니다");
+  } else if (details.reason === "update") {
+    // 주요 버전 업데이트인 경우에만 옵션 페이지 열기
+    const previousVersion = details.previousVersion || "0.0.0";
+    const currentVersion = chrome.runtime.getManifest().version;
+    
+    const previousMajor = parseInt(previousVersion.split('.')[0]);
+    const currentMajor = parseInt(currentVersion.split('.')[0]);
+    
+    if (currentMajor > previousMajor) {
+      chrome.tabs.create({ url: "options.html?updated=true" });
+      logDebug(`메이저 버전 업데이트 (${previousVersion} -> ${currentVersion})로 인해 옵션 페이지가 열렸습니다`);
+    } else {
+      logDebug(`확장 프로그램이 업데이트되었습니다: ${previousVersion} -> ${currentVersion}`);
+    }
+  }
   initialize();
 });
 
@@ -162,85 +223,105 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
   }
 });
 
+// 탭 활성화 추적 (현재 활성 탭 ID 기록)
+chrome.tabs.onActivated.addListener(function(activeInfo) {
+    activeTabId = activeInfo.tabId;
+    logDebug("활성 탭 변경됨:", activeTabId);
+});
+
 // 메시지 리스너
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  console.log("메시지 수신:", request.action);
+  logDebug("메시지 수신:", { action: request.action, sender: sender.tab ? sender.tab.url : "확장 프로그램" });
   
   try {
     // 확장 프로그램 재초기화 요청 처리
     if (request.action === "reinitialize") {
-      console.log("재초기화 요청 수신됨");
+      logDebug("재초기화 요청 수신됨");
       
       try {
-        // 초기화가 이미 완료된 경우
-        if (isInitialized && bookStaxxFolderId) {
-          console.log("이미 초기화된 상태, 상태 전송");
-          setTimeout(() => {
-            try {
-              sendResponse({ 
-                success: true, 
-                message: "확장 프로그램이 이미 초기화되어 있습니다.", 
-                folderId: bookStaxxFolderId,
-                timestamp: Date.now()
-              });
-            } catch (responseError) {
-              console.error("재초기화 응답 중 오류:", responseError);
-              sendResponse({ success: false, error: "응답 전송 중 오류 발생" });
-            }
-          }, 0);
-        } else {
-          // 재초기화 시도
-          console.log("재초기화 시도 중...");
-          initialize()
-            .then(() => {
-              console.log("재초기화 성공");
-              setTimeout(() => {
-                try {
-                  sendResponse({ 
-                    success: true, 
-                    message: "확장 프로그램이 재초기화되었습니다.", 
-                    folderId: bookStaxxFolderId,
-                    timestamp: Date.now()
-                  });
-                } catch (responseError) {
-                  console.error("재초기화 성공 응답 중 오류:", responseError);
-                }
-              }, 0);
-            })
-            .catch(error => {
-              console.error("재초기화 실패:", error);
-              setTimeout(() => {
-                try {
-                  sendResponse({ 
-                    success: false, 
-                    error: "재초기화 실패: " + (error.message || "알 수 없는 오류"),
-                    timestamp: Date.now()
-                  });
-                } catch (responseError) {
-                  console.error("재초기화 실패 응답 중 오류:", responseError);
-                }
-              }, 0);
-            });
+        const tabId = sender.tab ? sender.tab.id : null;
+        const tabUrl = sender.tab ? sender.tab.url : null;
+        
+        if (!tabId || !tabUrl) {
+          logDebug("재초기화 실패: 유효한 탭 ID 또는 URL 없음");
+          sendResponse({ success: false, error: "유효한 탭 정보 없음" });
+          return true;
         }
-      } catch (error) {
-        console.error("재초기화 처리 중 예외 발생:", error);
-        try {
+        
+        // 컨텍스트 무효화 상태 추적
+        const contextKey = `${tabId}:${tabUrl}`;
+        invalidatedContexts[contextKey] = {
+          timestamp: Date.now(),
+          recoveryAttempt: request.recoveryAttempt || 1,
+          isIframe: request.isIframe || false,
+          isRestrictedSite: request.isRestrictedSite || false
+        };
+        
+        // 제한된 사이트에서는 컨텍스트 재주입을 적게 시도
+        const isRestrictedSite = request.isRestrictedSite;
+        if (isRestrictedSite && request.recoveryAttempt > 2) {
+          logDebug(`제한된 사이트에서 과도한 재초기화 요청 제한 (시도: ${request.recoveryAttempt})`, { tabId, tabUrl });
           sendResponse({ 
             success: false, 
-            error: "재초기화 처리 중 예외 발생: " + error.message,
-            timestamp: Date.now()
+            limited: true, 
+            message: "제한된 사이트에서 재초기화 횟수 제한" 
           });
-        } catch (responseError) {
-          console.error("예외 응답 중 추가 오류:", responseError);
+          return true;
         }
+        
+        // 탭이 존재하는지 확인
+        chrome.tabs.get(tabId, function(tab) {
+          if (chrome.runtime.lastError) {
+            logDebug(`재초기화 실패: 탭을 찾을 수 없음 (${tabId})`, chrome.runtime.lastError);
+            sendResponse({ success: false, error: "탭을 찾을 수 없음" });
+            return;
+          }
+          
+          // 탭이 유효하고 로드된 상태인지 확인
+          if (!tab || tab.status !== 'complete') {
+            logDebug(`재초기화 실패: 탭이 완전히 로드되지 않음 (${tabId}, 상태: ${tab ? tab.status : '없음'})`);
+            sendResponse({ success: false, error: "탭이 완전히 로드되지 않음" });
+            return;
+          }
+          
+          // content script 재주입 시도
+          chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['content.js']
+          }, function(results) {
+            if (chrome.runtime.lastError) {
+              logDebug(`컨텐츠 스크립트 재주입 실패: ${chrome.runtime.lastError.message}`);
+              sendResponse({ success: false, error: chrome.runtime.lastError.message });
+              return;
+            }
+            
+            // CSS 재주입 (인터페이스가 제대로 보이도록)
+            chrome.scripting.insertCSS({
+              target: { tabId: tabId },
+              files: ['styles.css']
+            }, function() {
+              if (chrome.runtime.lastError) {
+                logDebug(`CSS 재주입 실패: ${chrome.runtime.lastError.message}`);
+                // CSS 실패는 치명적이지 않으므로 성공으로 처리
+              }
+              
+              logDebug(`탭 ${tabId}에 컨텐츠 스크립트 재주입 성공`);
+              sendResponse({ success: true });
+            });
+          });
+        });
+        
+        return true; // 비동기 응답을 위해 true 반환
+      } catch (error) {
+        logDebug("재초기화 중 예외 발생:", error);
+        sendResponse({ success: false, error: error.message });
+        return true;
       }
-      
-      return true; // 비동기 응답을 위해 true 반환
     }
     
     // 컨텍스트 유효성 확인을 위한 핑
     if (request.action === "ping") {
-      console.log("핑 요청 수신됨");
+      logDebug("핑 요청 수신됨");
       try {
         // 핑 요청에 대해 더 많은 정보 제공
         setTimeout(() => {
@@ -338,31 +419,10 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     
     // 설정 가져오기
     if (request.action === "getSettings") {
-      // 기본 설정
-      const defaultSettings = {
-        activationMethod: 'middleclick',
-        hotkey: 'b',
-        hotkeyModifier: 'alt',
-        openInNewTab: true,
-        focusNewTab: true,
-        autoCloseAfterSelect: true,
-        positionNearClick: true,
-        theme: 'auto',
-        bookmarkIconSize: '48',
-        bookmarkFontSize: '14',
-        maxBookmarks: 20,
-        animationEnabled: true,
-        bookmarkLayoutMode: 'circle',
-        bookmarkAnimationMode: 'shoot'
-      };
-      
-      // 저장된 설정 가져오기
-      chrome.storage.sync.get(defaultSettings, function(settings) {
-        console.log("설정 로드:", settings);
-        sendResponse({ 
-          success: true, 
-          settings: settings 
-        });
+      chrome.storage.sync.get('settings', function(data) {
+        const settings = data.settings || DEFAULT_SETTINGS;
+        logDebug("설정 요청에 응답:", settings);
+        sendResponse({ success: true, settings: settings });
       });
       
       return true; // 비동기 응답을 위해 true 반환
@@ -694,4 +754,32 @@ function addBookmarkToFolder(title, url, callback) {
       });
     }
   });
-} 
+}
+
+// 매시간마다 컨텍스트 무효화 추적 정보 정리
+setInterval(() => {
+    const now = Date.now();
+    const expiredKeys = [];
+    
+    // 24시간 이상 된 항목 찾기
+    for (const key in invalidatedContexts) {
+        const context = invalidatedContexts[key];
+        if (now - context.timestamp > 24 * 60 * 60 * 1000) {
+            expiredKeys.push(key);
+        }
+    }
+    
+    // 만료된 항목 삭제
+    expiredKeys.forEach(key => {
+        delete invalidatedContexts[key];
+    });
+    
+    if (expiredKeys.length > 0) {
+        logDebug(`${expiredKeys.length}개의 만료된 컨텍스트 추적 항목 정리됨`);
+    }
+}, 60 * 60 * 1000); // 1시간마다 실행
+
+// 확장 프로그램 시작 로그
+logDebug("BookStaxx 백그라운드 스크립트 로드됨", {
+    version: chrome.runtime.getManifest().version
+}); 

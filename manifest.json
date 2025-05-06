@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "BookStaxx",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "웹 페이지에서 빠르게 북마크에 접근할 수 있는 확장 프로그램",
   "permissions": [
     "bookmarks",
     "storage",
     "favicon",
     "tabs",
-    "contextMenus"
+    "contextMenus",
+    "scripting"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -21,7 +22,7 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "css": ["contentStyles.css"],
+      "css": ["styles.css"],
       "run_at": "document_end"
     }
   ],
@@ -42,7 +43,7 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["icons/*"],
+      "resources": ["icons/*", "styles.css", "*.js", "*.html"],
       "matches": ["<all_urls>"]
     }
   ],
