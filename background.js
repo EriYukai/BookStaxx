@@ -562,7 +562,7 @@ function processBookmarks(bookmarkTree) {
             // 북마크인 경우
             folder.children.push({
               id: child.id,
-              title: child.title || "제목 없음",
+              title: child.title || "",
               url: child.url,
               type: "bookmark"
             });
@@ -580,7 +580,7 @@ function processBookmarks(bookmarkTree) {
               if (grandChild.url) {
                 subFolder.children.push({
                   id: grandChild.id,
-                  title: grandChild.title || "제목 없음",
+                  title: grandChild.title || "",
                   url: grandChild.url,
                   type: "bookmark"
                 });
@@ -708,11 +708,7 @@ function addBookmarkToFolder(title, url, callback) {
   
   // 제목이 없으면 URL에서 도메인 추출
   if (!title || title.trim() === '') {
-    try {
-      title = new URL(url).hostname;
-    } catch (e) {
-      title = "새 북마크";
-    }
+    title = "";
   }
   
   // 북마크 중복 체크

@@ -794,7 +794,7 @@ function createBookmarkIcon(bookmark) {
     bookmarkIcon.setAttribute('data-url', bookmark.url);
     
     // 수정: 제목 처리 개선 - 제목이 없거나, 공백, undefined인 경우를 처리
-    const bookmarkTitle = (bookmark.title && bookmark.title.trim()) ? bookmark.title.trim() : '제목 없음';
+    const bookmarkTitle = (bookmark.title && bookmark.title.trim()) ? bookmark.title.trim() : '';
     bookmarkIcon.setAttribute('data-title', bookmarkTitle);
     
     // 아이콘 이미지 컨테이너
@@ -880,21 +880,24 @@ function createBookmarkIcon(bookmark) {
     // 설정에서 제목 길이 제한 가져오기 (기본값: 6)
     const titleLengthLimit = parseInt(currentSettings.titleLengthLimit || '6', 10);
     
-    // 제목 길이에 따른 표시 처리
-    let displayTitle = bookmarkTitle;
-    if (displayTitle.length > titleLengthLimit) {
-        displayTitle = displayTitle.substring(0, titleLengthLimit) + '...';
+    // 제목이 있는 경우에만 표시
+    if (bookmarkTitle) {
+        // 제목 길이에 따른 표시 처리
+        let displayTitle = bookmarkTitle;
+        if (displayTitle.length > titleLengthLimit) {
+            displayTitle = displayTitle.substring(0, titleLengthLimit) + '...';
+        }
+        
+        title.textContent = displayTitle;
+        title.title = bookmarkTitle; // 툴팁으로 전체 제목 표시
+        
+        // 폰트 크기 설정 (문자열 설정을 숫자로 변환)
+        const fontSize = parseInt(currentSettings.bookmarkFontSize || '12', 10);
+        title.style.fontSize = `${fontSize}px`;
+        
+        // 아이콘에 제목 요소 추가
+        bookmarkIcon.appendChild(title);
     }
-    
-    title.textContent = displayTitle;
-    title.title = bookmarkTitle; // 툴팁으로 전체 제목 표시
-    
-    // 폰트 크기 설정 (문자열 설정을 숫자로 변환)
-    const fontSize = parseInt(currentSettings.bookmarkFontSize || '12', 10);
-    title.style.fontSize = `${fontSize}px`;
-    
-    // 아이콘에 제목 요소 추가
-    bookmarkIcon.appendChild(title);
     
     // 클릭 이벤트 리스너 추가
     bookmarkIcon.addEventListener('click', function(event) {
@@ -1334,11 +1337,19 @@ function displayBookmarkIcons(container, tree) {
                 const title = document.createElement('div');
                 title.className = 'bookstaxx-bookmark-icon-title';
                 title.setAttribute('data-bookstaxx-element', 'true');
-                title.textContent = bookmark.title;
                 
-                // 아이콘에 요소 추가
-                bookmarkIcon.appendChild(iconContainer);
-                bookmarkIcon.appendChild(title);
+                // 제목이 있는 경우에만 표시
+                const bookmarkTitle = (bookmark.title && bookmark.title.trim()) ? bookmark.title.trim() : '';
+                if (bookmarkTitle) {
+                    title.textContent = bookmarkTitle;
+                    
+                    // 아이콘에 요소 추가
+                    bookmarkIcon.appendChild(iconContainer);
+                    bookmarkIcon.appendChild(title);
+                } else {
+                    // 제목이 없는 경우 아이콘만 표시
+                    bookmarkIcon.appendChild(iconContainer);
+                }
                 
                 // 랜덤 위치 계산 (화면 밖으로 나가지 않도록)
                 let targetX, targetY;
@@ -1583,11 +1594,16 @@ function displayBookmarkTree(container, tree) {
                 const title = document.createElement('div');
                 title.className = 'bookstaxx-bookmark-title';
                 title.setAttribute('data-bookstaxx-element', 'true');
-                title.textContent = node.title;
+                
+                // 제목이 있는 경우에만 표시
+                const bookmarkTitle = (bookmark.title && bookmark.title.trim()) ? bookmark.title.trim() : '';
+                if (bookmarkTitle) {
+                    title.textContent = bookmarkTitle;
+                    bookmarkElement.appendChild(title);
+                }
                 
                 // 북마크 요소에 파비콘 컨테이너와 제목 추가
                 bookmarkElement.appendChild(faviconContainer);
-                bookmarkElement.appendChild(title);
                 
                 // 북마크 요소에 클릭 이벤트 리스너 등록
                 bookmarkElement.addEventListener('click', function(event) {
@@ -1692,11 +1708,16 @@ function initializeSearch(searchInput, container, bookmarks) {
                 const title = document.createElement('div');
                 title.className = 'bookstaxx-bookmark-title';
                 title.setAttribute('data-bookstaxx-element', 'true');
-                title.textContent = bookmark.title;
+                
+                // 제목이 있는 경우에만 표시
+                const bookmarkTitle = (bookmark.title && bookmark.title.trim()) ? bookmark.title.trim() : '';
+                if (bookmarkTitle) {
+                    title.textContent = bookmarkTitle;
+                    bookmarkElement.appendChild(title);
+                }
                 
                 // 북마크 요소에 파비콘 컨테이너와 제목 추가
                 bookmarkElement.appendChild(faviconContainer);
-                bookmarkElement.appendChild(title);
                 
                 // 북마크 요소에 클릭 이벤트 리스너 등록
                 bookmarkElement.addEventListener('click', function(event) {
