@@ -533,20 +533,525 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         // 북마크 아이콘 크기 계산
         const iconSize = parseInt(currentSettings.bookmarkIconSize || '48', 10);
         
-        // 물리 엔진 시뮬레이션을 위한 설정
+        // 물리 엔진 시뮬레이션을 위한 설정 개선
         const physicsConfig = {
-            friction: 0.8,             // 마찰 계수
-            mass: 1,                   // 질량
-            stiffness: 0.3,            // 충돌 시 강성
-            gravity: 0.05,             // 중력 (0에 가까울수록 약함)
-            maxSpeed: 15,              // 최대 속도 제한
-            collisionRadius: iconSize * 1.2,  // 충돌 감지 반경
-            dampening: 0.92,           // 감쇠 계수 (속도 감소 계수)
-            simulationSteps: 40,       // 시뮬레이션 단계 수
-            simulationSpeed: 1,        // 시뮬레이션 속도
-            centerAttraction: 0.01,    // 중심 방향 끌어당기는 힘
-            initialExplosionForce: 0.5 // 초기 배치 시 폭발력
+            friction: 0.7,                // 마찰 계수
+            mass: 1,                      // 질량
+            stiffness: 0.6,               // 충돌 시 강성 (0.75에서 0.6으로 감소)
+            gravity: 0.03,                // 중력 (0.05에서 0.03으로 감소)
+            maxSpeed: 10,                 // 최대 속도 제한 (15에서 10으로 감소)
+            collisionRadius: iconSize * 1.2,  // 충돌 감지 반경 (1.8에서 1.2로 감소)
+            dampening: 0.95,              // 감쇠 계수 (0.92에서 0.95로 증가)
+            simulationSteps: 50,          // 시뮬레이션 단계 수 (80에서 50으로 감소)
+            simulationSpeed: 1.0,         // 시뮬레이션 속도 (1.2에서 1.0으로 감소)
+            centerAttraction: 0.015,      // 중심 방향 끌어당기는 힘 (0.01에서 0.015로 증가)
+            initialExplosionForce: 0.5,   // 초기 배치 시 폭발력 (0.8에서 0.5로 감소)
+            repulsionForce: 0.1,          // 서로 밀치는 힘 (0.2에서 0.1로 감소)
+            minSeparationDistance: iconSize * 1.5, // 최소 분리 거리 (2.2에서 1.5로 감소)
+            velocityDamping: 0.3,         // 속도 감쇠
+            postSimulationPushes: 2,      // 시뮬레이션 후 추가 밀어내기 횟수 (3에서 2로 감소)
+            useVisuallyPleasingLayout: true, // 시각적으로 아름다운 레이아웃 사용 여부 (새로 추가)
+            maxPositioningAttempts: 3,    // 최대 위치 지정 시도 횟수 (새로 추가)
+            overlapThreshold: 0.7         // 겹침 허용 임계값 (0-1 사이, 1이면 완전히 겹치지 않음) (새로 추가)
         };
+        
+        // 물리 엔진 북마크 객체 생성 함수 개선
+        function createPhysicsBookmarks(bookmarks, centerX, centerY, iconSize, config) {
+            const physicsObjects = [];
+            const totalBookmarks = bookmarks.length;
+            
+            // 북마크 수에 따라 적절한 패턴 선택
+            let pattern = 'grid'; // 기본 패턴을 격자형으로 변경
+            
+            if (totalBookmarks > 70) {
+                pattern = 'multiCircle';
+            } else if (totalBookmarks > 30) {
+                pattern = 'flowGrid';
+            } else {
+                pattern = 'grid';
+            }
+            
+            // 시각적으로 아름다운 레이아웃을 사용할 경우 패턴 재설정
+            if (config.useVisuallyPleasingLayout) {
+                if (totalBookmarks <= 20) {
+                    pattern = 'circle';     // 적은 수의 북마크는 원형으로
+                } else if (totalBookmarks <= 50) {
+                    pattern = 'honeycomb';  // 중간 수의 북마크는 벌집 모양으로
+                } else {
+                    pattern = 'multiCircle'; // 많은 수의 북마크는 다중 원형으로
+                }
+            }
+            
+            console.log(`북마크 ${totalBookmarks}개, 선택된 배치 패턴: ${pattern}`);
+            
+            // 화면 크기 기반 계산
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const minDimension = Math.min(screenWidth, screenHeight);
+            
+            // 배치 공간 계산 (작은 화면 차원의 70%)
+            const placementArea = minDimension * 0.7;
+            
+            // 각 북마크가 필요로 하는 최소 공간 계산
+            const bookmarkArea = Math.PI * Math.pow(config.collisionRadius, 2);
+            const totalAreaNeeded = bookmarkArea * totalBookmarks;
+            
+            // 필요한 공간이 사용 가능한 공간보다 크면 조정
+            const scaleFactor = Math.max(1, Math.sqrt(totalAreaNeeded / (Math.PI * Math.pow(placementArea/2, 2))));
+            
+            console.log(`북마크 배치 공간 계산: 필요 면적=${totalAreaNeeded.toFixed(0)}px², 사용 가능=${Math.PI * Math.pow(placementArea/2, 2).toFixed(0)}px², 조정 계수=${scaleFactor.toFixed(2)}`);
+            
+            // 패턴에 따라 초기 위치 설정
+            for (let i = 0; i < totalBookmarks; i++) {
+                let initialX, initialY;
+                const bookmark = bookmarks[i];
+                const radius = placementArea * 0.35 * Math.min(scaleFactor, 1.5); // 기본 반경 (최대 1.5배 제한)
+                
+                if (pattern === 'spiral') {
+                    // 나선형 배치 패턴 (더 조밀하게)
+                    const turns = 3; // 나선의 회전 수 (5에서 3으로 감소)
+                    const angle = (i / totalBookmarks) * Math.PI * 2 * turns;
+                    
+                    // 나선 반경은 북마크의 순서에 비례하여 증가
+                    const spiralRadius = (i / totalBookmarks) * radius;
+                    
+                    initialX = centerX + Math.cos(angle) * spiralRadius;
+                    initialY = centerY + Math.sin(angle) * spiralRadius;
+                } else if (pattern === 'multiCircle') {
+                    // 다중 원형 배치 패턴 (더 균일하게)
+                    const circles = Math.min(4, Math.ceil(totalBookmarks / 25)); // 동심원 수 (최대 4개)
+                    const circleIndex = Math.floor(i * circles / totalBookmarks);
+                    const itemsInCircle = Math.ceil(totalBookmarks / circles);
+                    
+                    // 각 원의 아이템 수 계산 (바깥 원일수록 더 많은 아이템)
+                    let itemsInThisCircle;
+                    if (circles === 1) {
+                        itemsInThisCircle = totalBookmarks;
+                    } else {
+                        const ratio = 0.5 + (circleIndex / (circles - 1)) * 0.5; // 0.5 ~ 1.0
+                        itemsInThisCircle = Math.ceil(itemsInCircle * ratio);
+                    }
+                    
+                    // 현재 원에서의 위치 계산
+                    const indexInCircle = i % itemsInThisCircle;
+                    const angleInCircle = (indexInCircle / itemsInThisCircle) * Math.PI * 2;
+                    
+                    // 각 원의 반경은 밖으로 갈수록 증가 (더 균일한 간격으로)
+                    const circleRadius = radius * ((circleIndex + 1) / circles);
+                    
+                    initialX = centerX + Math.cos(angleInCircle) * circleRadius;
+                    initialY = centerY + Math.sin(angleInCircle) * circleRadius;
+                } else if (pattern === 'grid') {
+                    // 격자형 배치 패턴 (더 균일하게)
+                    const gridRatio = screenWidth / screenHeight; // 화면 비율에 맞게 조정
+                    const rows = Math.ceil(Math.sqrt(totalBookmarks / gridRatio));
+                    const cols = Math.ceil(totalBookmarks / rows);
+                    
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    
+                    // 격자 간격 조정 (화면 크기와 북마크 수에 맞게)
+                    const gridWidth = Math.min(screenWidth * 0.8, cols * config.collisionRadius * 2.2);
+                    const gridHeight = Math.min(screenHeight * 0.8, rows * config.collisionRadius * 2.2);
+                    
+                    const cellWidth = gridWidth / cols;
+                    const cellHeight = gridHeight / rows;
+                    
+                    initialX = centerX - gridWidth/2 + cellWidth/2 + col * cellWidth;
+                    initialY = centerY - gridHeight/2 + cellHeight/2 + row * cellHeight;
+                } else if (pattern === 'circle') {
+                    // 원형 배치 패턴 (단일 원)
+                    const angle = (i / totalBookmarks) * Math.PI * 2;
+                    initialX = centerX + Math.cos(angle) * radius * 0.6;
+                    initialY = centerY + Math.sin(angle) * radius * 0.6;
+                } else if (pattern === 'honeycomb') {
+                    // 벌집 모양 배치 (육각형 그리드)
+                    const hexRadius = config.collisionRadius * 1.5;
+                    const hexHeight = hexRadius * Math.sqrt(3);
+                    
+                    // 벌집 크기 계산
+                    const honeyRows = Math.ceil(Math.sqrt(totalBookmarks / 1.5));
+                    const honeyCols = Math.ceil(totalBookmarks / honeyRows);
+                    
+                    // 벌집 내 위치 계산
+                    let hexRow = Math.floor(i / honeyCols);
+                    let hexCol = i % honeyCols;
+                    
+                    // 육각 그리드 좌표 계산
+                    const isOddRow = hexRow % 2 === 1;
+                    
+                    // 육각형 그리드의 중심 위치 계산
+                    const gridWidth = honeyCols * hexRadius * 3;
+                    const gridHeight = honeyRows * hexHeight;
+                    
+                    // 육각형의 x, y 좌표 계산
+                    const hexX = hexCol * hexRadius * 3 + (isOddRow ? hexRadius * 1.5 : 0);
+                    const hexY = hexRow * hexHeight;
+                    
+                    // 그리드 좌표를 화면 중앙 기준으로 변환
+                    initialX = centerX - gridWidth/2 + hexX + hexRadius;
+                    initialY = centerY - gridHeight/2 + hexY + hexHeight/2;
+                } else if (pattern === 'flowGrid') {
+                    // 흐르는 듯한 격자 (약간의 오프셋으로 자연스럽게)
+                    const cols = Math.ceil(Math.sqrt(totalBookmarks * 1.2));
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    
+                    // 기본 격자 위치 계산
+                    const gridSize = config.collisionRadius * 2.0;
+                    let baseX = centerX + (col - cols/2) * gridSize;
+                    let baseY = centerY + (row - Math.ceil(totalBookmarks/cols)/2) * gridSize;
+                    
+                    // 행에 따라 약간의 수평 오프셋 추가 (흐르는 느낌을 위해)
+                    const rowOffset = (row % 2 === 0) ? 0 : gridSize * 0.5;
+                    baseX += rowOffset;
+                    
+                    // 자연스러운 느낌을 위해 약간의 랜덤 오프셋 추가
+                    const randomOffsetX = (Math.random() * 2 - 1) * gridSize * 0.1;
+                    const randomOffsetY = (Math.random() * 2 - 1) * gridSize * 0.1;
+                    
+                    initialX = baseX + randomOffsetX;
+                    initialY = baseY + randomOffsetY;
+                }
+                
+                // 물리 객체 생성 (속성 추가)
+                const physicsObj = {
+                    bookmark: bookmark,
+                    x: initialX,
+                    y: initialY,
+                    vx: 0,                // x 방향 속도
+                    vy: 0,                // y 방향 속도
+                    ax: 0,                // x 방향 가속도
+                    ay: 0,                // y 방향 가속도
+                    mass: config.mass,
+                    radius: config.collisionRadius,
+                    index: i,
+                    inCollision: false    // 충돌 상태 플래그
+                };
+                
+                physicsObjects.push(physicsObj);
+            }
+            
+            // 초기 위치에서 약간 랜덤하게 이동시켜 더 자연스러운 배치
+            physicsObjects.forEach(obj => {
+                // 중심에서의 방향
+                const dx = obj.x - centerX;
+                const dy = obj.y - centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // 중심에서 바깥쪽으로 향하는 초기 속도 부여 (줄임)
+                if (dist > 0) {
+                    obj.vx = (dx / dist) * config.initialExplosionForce * (Math.random() * 0.3 + 0.5);
+                    obj.vy = (dy / dist) * config.initialExplosionForce * (Math.random() * 0.3 + 0.5);
+                } else {
+                    // 중심에 있는 경우 랜덤 방향
+                    const angle = Math.random() * Math.PI * 2;
+                    obj.vx = Math.cos(angle) * config.initialExplosionForce * 0.5;
+                    obj.vy = Math.sin(angle) * config.initialExplosionForce * 0.5;
+                }
+            });
+            
+            return physicsObjects;
+        }
+        
+        // 물리 엔진 시뮬레이션 실행 함수 개선
+        function runPhysicsSimulation(physicsObjects, centerX, centerY, screenWidth, screenHeight, config) {
+            const margin = config.collisionRadius;
+            let totalCollisions = 0;
+            let maxSimultaneousCollisions = 0;
+            
+            console.log(`물리 시뮬레이션 시작: ${physicsObjects.length}개 북마크, ${config.simulationSteps}단계`);
+            
+            // 여러 단계에 걸쳐 시뮬레이션 실행
+            for (let step = 0; step < config.simulationSteps; step++) {
+                let collisionsThisStep = 0;
+                
+                // 모든 객체의 충돌 상태 초기화
+                physicsObjects.forEach(obj => {
+                    obj.inCollision = false;
+                    obj.ax = 0;
+                    obj.ay = 0;
+                });
+                
+                // 각 북마크 객체에 대해 시뮬레이션 적용
+                physicsObjects.forEach(obj => {
+                    // 스크린 경계에 충돌 처리
+                    if (obj.x - margin < 0 && obj.vx < 0) {
+                        obj.vx = -obj.vx * 0.8; // 반사 (에너지 손실)
+                        obj.x = margin;
+                    } else if (obj.x + margin > screenWidth && obj.vx > 0) {
+                        obj.vx = -obj.vx * 0.8;
+                        obj.x = screenWidth - margin;
+                    }
+                    
+                    if (obj.y - margin < 0 && obj.vy < 0) {
+                        obj.vy = -obj.vy * 0.8;
+                        obj.y = margin;
+                    } else if (obj.y + margin > screenHeight && obj.vy > 0) {
+                        obj.vy = -obj.vy * 0.8;
+                        obj.y = screenHeight - margin;
+                    }
+                    
+                    // 중심으로 끌어당기는 힘 적용 (너무 멀리 가지 않도록)
+                    const dx = centerX - obj.x;
+                    const dy = centerY - obj.y;
+                    // 안전 체크: 0으로 나누는 것 방지
+                    const distanceToCenter = Math.sqrt(dx*dx + dy*dy) || 0.001;
+                    
+                    // 일정 거리보다 멀어지면 중심으로 끌어당기는 힘 적용
+                    const maxDistance = Math.min(screenWidth, screenHeight) * 0.4;
+                    if (distanceToCenter > maxDistance) {
+                        const forceFactor = config.centerAttraction * Math.pow((distanceToCenter - maxDistance) / maxDistance, 2);
+                        obj.ax += (dx / distanceToCenter) * forceFactor;
+                        obj.ay += (dy / distanceToCenter) * forceFactor;
+                    }
+                });
+                
+                // 충돌 감지 및 해결 (개선된 버전)
+                for (let i = 0; i < physicsObjects.length; i++) {
+                    for (let j = i + 1; j < physicsObjects.length; j++) {
+                        const obj1 = physicsObjects[i];
+                        const obj2 = physicsObjects[j];
+                        
+                        // 두 북마크 간의 거리 계산
+                        const dx = obj2.x - obj1.x;
+                        const dy = obj2.y - obj1.y;
+                        // 안전 체크: 0으로 나누는 것 방지
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 0.001;
+                        
+                        // 충돌 감지 - 실제 충돌 반경보다 더 넓은 범위에서 서로 영향
+                        const minDistance = obj1.radius + obj2.radius;
+                        const repulsionDistance = config.minSeparationDistance;
+                        
+                        // 충돌 감지
+                        if (distance < minDistance) {
+                            // 충돌 상태 설정
+                            obj1.inCollision = true;
+                            obj2.inCollision = true;
+                            collisionsThisStep++;
+                            totalCollisions++;
+                            
+                            // 충돌 해결: 겹친 만큼 서로 밀어내기 (조정됨)
+                            const overlap = (minDistance - distance) * config.stiffness;
+                            
+                            // 충돌 방향 벡터 계산
+                            const directionX = dx / distance;
+                            const directionY = dy / distance;
+                            
+                            // 서로 밀어내는 위치 조정 (밀어내기 강도 감소)
+                            const pushFactor = overlap * (1.0 + Math.random() * 0.2);
+                            obj1.x -= directionX * pushFactor * 0.5;
+                            obj1.y -= directionY * pushFactor * 0.5;
+                            obj2.x += directionX * pushFactor * 0.5;
+                            obj2.y += directionY * pushFactor * 0.5;
+                            
+                            // 탄성 충돌에 의한 운동량 교환
+                            const m1 = obj1.mass;
+                            const m2 = obj2.mass;
+                            const v1x = obj1.vx;
+                            const v1y = obj1.vy;
+                            const v2x = obj2.vx;
+                            const v2y = obj2.vy;
+                            
+                            // 총 질량
+                            const totalMass = m1 + m2;
+                            const massRatio1 = m1 / totalMass;
+                            const massRatio2 = m2 / totalMass;
+                            
+                            // 접촉하는 방향으로의 속도 계산
+                            const v1DotDir = v1x * directionX + v1y * directionY;
+                            const v2DotDir = v2x * directionX + v2y * directionY;
+                            
+                            // 탄성 충돌 계산 (물리학 공식)
+                            const v1NewDotDir = v1DotDir + 2 * massRatio2 * (v2DotDir - v1DotDir);
+                            const v2NewDotDir = v2DotDir + 2 * massRatio1 * (v1DotDir - v2DotDir);
+                            
+                            // 속도 업데이트 (반발력 감소)
+                            const elasticity = 1.0; // 반발 계수 (1.2에서 1.0으로 감소)
+                            obj1.vx += (v1NewDotDir - v1DotDir) * directionX * elasticity;
+                            obj1.vy += (v1NewDotDir - v1DotDir) * directionY * elasticity;
+                            obj2.vx += (v2NewDotDir - v2DotDir) * directionX * elasticity;
+                            obj2.vy += (v2NewDotDir - v2DotDir) * directionY * elasticity;
+                            
+                            // 충돌 시 추가 반발력 적용 (감소)
+                            obj1.vx -= directionX * config.repulsionForce;
+                            obj1.vy -= directionY * config.repulsionForce;
+                            obj2.vx += directionX * config.repulsionForce;
+                            obj2.vy += directionY * config.repulsionForce;
+                        }
+                        // 가까워지는 경우 약한 밀어내기 힘 적용 (충돌 예방)
+                        else if (distance < repulsionDistance) {
+                            // 거리에 따라 감소하는 밀어내기 힘
+                            const repulsionStrength = config.repulsionForce * 0.5 * (1 - distance / repulsionDistance);
+                            
+                            const directionX = dx / distance;
+                            const directionY = dy / distance;
+                            
+                            obj1.ax -= directionX * repulsionStrength;
+                            obj1.ay -= directionY * repulsionStrength;
+                            obj2.ax += directionX * repulsionStrength;
+                            obj2.ay += directionY * repulsionStrength;
+                        }
+                    }
+                }
+                
+                // 최대 동시 충돌 업데이트
+                maxSimultaneousCollisions = Math.max(maxSimultaneousCollisions, collisionsThisStep);
+                
+                // 가속도 및 속도 업데이트
+                physicsObjects.forEach(obj => {
+                    // 가속도 적용
+                    obj.vx += obj.ax;
+                    obj.vy += obj.ay;
+                    
+                    // 충돌 중인 객체는 속도를 더 감쇠시킴
+                    const dampFactor = obj.inCollision ? 
+                        config.dampening * config.velocityDamping : 
+                        config.dampening;
+                    
+                    // 속도 감쇠
+                    obj.vx *= dampFactor;
+                    obj.vy *= dampFactor;
+                    
+                    // 최대 속도 제한
+                    const speed = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy);
+                    if (speed > config.maxSpeed) {
+                        obj.vx = (obj.vx / speed) * config.maxSpeed;
+                        obj.vy = (obj.vy / speed) * config.maxSpeed;
+                    }
+                    
+                    // 위치 업데이트
+                    obj.x += obj.vx * config.simulationSpeed;
+                    obj.y += obj.vy * config.simulationSpeed;
+                });
+                
+                // 시뮬레이션 진행 상황 로깅
+                if (step === 0 || step === config.simulationSteps - 1 || step % 20 === 0) {
+                    console.log(`물리 시뮬레이션 진행 중: ${step+1}/${config.simulationSteps} 단계, 충돌: ${collisionsThisStep}개`);
+                }
+            }
+            
+            // 경계 밖으로 나간 북마크 위치 조정
+            physicsObjects.forEach(obj => {
+                obj.x = Math.max(margin, Math.min(screenWidth - margin, obj.x));
+                obj.y = Math.max(margin, Math.min(screenHeight - margin, obj.y));
+            });
+            
+            console.log(`물리 시뮬레이션 완료 - 총 충돌 수: ${totalCollisions}, 최대 동시 충돌: ${maxSimultaneousCollisions}`);
+            
+            // 시뮬레이션 후 겹침 제거를 위한 추가 패스
+            console.log("시뮬레이션 후 겹침 제거 작업 시작...");
+            
+            // 여러 번 반복하여 겹침 최소화
+            for (let pass = 0; pass < config.postSimulationPushes; pass++) {
+                let overlaps = 0;
+                
+                // 모든 북마크 쌍에 대해 겹침 확인
+                for (let i = 0; i < physicsObjects.length; i++) {
+                    for (let j = i + 1; j < physicsObjects.length; j++) {
+                        const obj1 = physicsObjects[i];
+                        const obj2 = physicsObjects[j];
+                        
+                        const dx = obj2.x - obj1.x;
+                        const dy = obj2.y - obj1.y;
+                        // 안전 체크: 0으로 나누는 것 방지
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 0.001;
+                        
+                        // 겹침 감지 - 일부 겹침 허용 (임계값 적용)
+                        const minAllowedDistance = (obj1.radius + obj2.radius) * config.overlapThreshold;
+                        if (distance < minAllowedDistance) {
+                            overlaps++;
+                            
+                            // 겹친 방향 계산
+                            const directionX = (distance > 0) ? dx / distance : (Math.random() * 2 - 1);
+                            const directionY = (distance > 0) ? dy / distance : (Math.random() * 2 - 1);
+                            
+                            // 겹침 해결을 위한 밀어내기 (강도 감소)
+                            const pushDistance = (minAllowedDistance - distance) * 0.55 + 2; // 기본 밀어내기 감소
+                            
+                            obj1.x -= directionX * pushDistance * 0.5;
+                            obj1.y -= directionY * pushDistance * 0.5;
+                            obj2.x += directionX * pushDistance * 0.5;
+                            obj2.y += directionY * pushDistance * 0.5;
+                            
+                            // 화면 경계 확인
+                            obj1.x = Math.max(margin, Math.min(screenWidth - margin, obj1.x));
+                            obj1.y = Math.max(margin, Math.min(screenHeight - margin, obj1.y));
+                            obj2.x = Math.max(margin, Math.min(screenWidth - margin, obj2.x));
+                            obj2.y = Math.max(margin, Math.min(screenHeight - margin, obj2.y));
+                        }
+                    }
+                }
+                
+                console.log(`겹침 제거 패스 ${pass+1}/${config.postSimulationPushes} - 남은 겹침: ${overlaps}개`);
+                
+                // 겹침이 없으면 일찍 종료
+                if (overlaps === 0) {
+                    console.log("모든 겹침이 제거됨, 패스 종료");
+                    break;
+                }
+            }
+            
+            // 최종 겹침 상태 검사 (NaN 오류 수정)
+            let finalOverlaps = 0;
+            let minSeparation = Number.MAX_VALUE; // Infinity 대신 MAX_VALUE 사용
+            let avgSeparation = 0;
+            let separationCount = 0;
+            
+            for (let i = 0; i < physicsObjects.length; i++) {
+                for (let j = i + 1; j < physicsObjects.length; j++) {
+                    const obj1 = physicsObjects[i];
+                    const obj2 = physicsObjects[j];
+                    
+                    const dx = obj2.x - obj1.x;
+                    const dy = obj2.y - obj1.y;
+                    // 안전 체크: 0으로 나누는 것 방지
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 0.001;
+                    
+                    // 겹침 카운트
+                    if (distance < obj1.radius + obj2.radius) {
+                        finalOverlaps++;
+                        if (finalOverlaps <= 5) {
+                            console.log(`최종 겹침 #${finalOverlaps}: 북마크 ${obj1.index}와 ${obj2.index} (거리: ${distance.toFixed(1)}px, 필요: ${(obj1.radius + obj2.radius).toFixed(1)}px)`);
+                        }
+                    }
+                    
+                    // 분리 거리 통계
+                    minSeparation = Math.min(minSeparation, distance);
+                    avgSeparation += distance;
+                    separationCount++;
+                }
+            }
+            
+            if (separationCount > 0) {
+                avgSeparation /= separationCount;
+            } else {
+                avgSeparation = 0; // 0으로 초기화
+            }
+            
+            // 최종 위치 통계
+            let avgDistToCenter = 0;
+            let validObjects = 0;
+            
+            physicsObjects.forEach(obj => {
+                const dx = obj.x - centerX;
+                const dy = obj.y - centerY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                // NaN 검사
+                if (!isNaN(dist)) {
+                    avgDistToCenter += dist;
+                    validObjects++;
+                }
+            });
+            
+            // NaN 방지
+            avgDistToCenter = validObjects > 0 ? avgDistToCenter / validObjects : 0;
+            
+            // isNaN 검사를 통한 안전한 출력
+            console.log(`최종 배치 상태: 겹침=${finalOverlaps}개, 최소 분리=${isNaN(minSeparation) ? 0 : minSeparation.toFixed(1)}px, 평균 분리=${isNaN(avgSeparation) ? 0 : avgSeparation.toFixed(1)}px`);
+            console.log(`평균 중심 거리: ${isNaN(avgDistToCenter) ? 0 : avgDistToCenter.toFixed(2)}px`);
+        }
         
         // 물리 엔진 북마크 객체 생성
         const physicsBookmarks = createPhysicsBookmarks(bookmarks, mouseX, mouseY, iconSize, physicsConfig);
@@ -562,225 +1067,6 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         console.error("북마크 아이콘 직접 표시 중 오류:", error);
         showErrorMessage("북마크 아이콘을 표시하는 중 오류가 발생했습니다: " + error.message);
     }
-}
-
-// 물리 엔진 북마크 객체 생성 함수
-function createPhysicsBookmarks(bookmarks, centerX, centerY, iconSize, config) {
-    const physicsObjects = [];
-    const totalBookmarks = bookmarks.length;
-    const arrangementPatterns = ['circle', 'spiral', 'grid'];
-    
-    // 북마크 수에 따라 적절한 패턴 선택
-    let pattern = 'circle'; // 기본 패턴
-    if (totalBookmarks > 30) {
-        pattern = 'spiral';
-    } else if (totalBookmarks > 15) {
-        pattern = 'circle';
-    } else {
-        pattern = 'grid';
-    }
-    
-    console.log(`북마크 ${totalBookmarks}개, 선택된 배치 패턴: ${pattern}`);
-    
-    // 패턴에 따라 초기 위치 설정
-    for (let i = 0; i < totalBookmarks; i++) {
-        let initialX, initialY;
-        const bookmark = bookmarks[i];
-        const radius = Math.min(window.innerWidth, window.innerHeight) * 0.25;
-        
-        if (pattern === 'circle') {
-            // 원형 배치 패턴
-            const angle = (i / totalBookmarks) * Math.PI * 2;
-            initialX = centerX + Math.cos(angle) * radius * 0.8;
-            initialY = centerY + Math.sin(angle) * radius * 0.8;
-        } else if (pattern === 'spiral') {
-            // 나선형 배치 패턴
-            const angle = (i / totalBookmarks) * Math.PI * 6; // 더 많은 회전
-            const spiralRadius = (i / totalBookmarks) * radius;
-            initialX = centerX + Math.cos(angle) * spiralRadius;
-            initialY = centerY + Math.sin(angle) * spiralRadius;
-        } else if (pattern === 'grid') {
-            // 격자형 배치 패턴
-            const cols = Math.ceil(Math.sqrt(totalBookmarks));
-            const row = Math.floor(i / cols);
-            const col = i % cols;
-            const gridSize = iconSize * 2;
-            initialX = centerX + (col - cols/2) * gridSize;
-            initialY = centerY + (row - Math.ceil(totalBookmarks/cols)/2) * gridSize;
-        }
-        
-        // 물리 객체 생성
-        const physicsObj = {
-            bookmark: bookmark,
-            x: initialX,
-            y: initialY,
-            vx: 0,            // x 방향 속도
-            vy: 0,            // y 방향 속도
-            mass: config.mass,
-            radius: config.collisionRadius,
-            index: i
-        };
-        
-        physicsObjects.push(physicsObj);
-    }
-    
-    // 초기 위치에서 약간 랜덤하게 이동시켜 더 자연스러운 배치
-    physicsObjects.forEach(obj => {
-        // 중심에서의 방향
-        const dx = obj.x - centerX;
-        const dy = obj.y - centerY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        // 중심에서 바깥쪽으로 향하는 초기 속도 부여
-        if (dist > 0) {
-            obj.vx = (dx / dist) * config.initialExplosionForce * (Math.random() + 0.5);
-            obj.vy = (dy / dist) * config.initialExplosionForce * (Math.random() + 0.5);
-        } else {
-            // 중심에 있는 경우 랜덤 방향
-            const angle = Math.random() * Math.PI * 2;
-            obj.vx = Math.cos(angle) * config.initialExplosionForce;
-            obj.vy = Math.sin(angle) * config.initialExplosionForce;
-        }
-    });
-    
-    return physicsObjects;
-}
-
-// 물리 엔진 시뮬레이션 실행 함수
-function runPhysicsSimulation(physicsObjects, centerX, centerY, screenWidth, screenHeight, config) {
-    const margin = config.collisionRadius;
-    
-    // 여러 단계에 걸쳐 시뮬레이션 실행
-    for (let step = 0; step < config.simulationSteps; step++) {
-        // 각 북마크 객체에 대해 시뮬레이션 적용
-        physicsObjects.forEach(obj => {
-            // 스크린 경계에 충돌 처리
-            if (obj.x - margin < 0 && obj.vx < 0) {
-                obj.vx = -obj.vx * 0.8; // 반사 (에너지 손실)
-                obj.x = margin;
-            } else if (obj.x + margin > screenWidth && obj.vx > 0) {
-                obj.vx = -obj.vx * 0.8;
-                obj.x = screenWidth - margin;
-            }
-            
-            if (obj.y - margin < 0 && obj.vy < 0) {
-                obj.vy = -obj.vy * 0.8;
-                obj.y = margin;
-            } else if (obj.y + margin > screenHeight && obj.vy > 0) {
-                obj.vy = -obj.vy * 0.8;
-                obj.y = screenHeight - margin;
-            }
-            
-            // 중심으로 끌어당기는 힘 적용 (너무 멀리 가지 않도록)
-            const dx = centerX - obj.x;
-            const dy = centerY - obj.y;
-            const distanceToCenter = Math.sqrt(dx*dx + dy*dy);
-            
-            // 일정 거리보다 멀어지면 중심으로 끌어당기는 힘 적용
-            const maxDistance = Math.min(screenWidth, screenHeight) * 0.5;
-            if (distanceToCenter > maxDistance) {
-                const forceFactor = config.centerAttraction * (distanceToCenter - maxDistance) / maxDistance;
-                obj.vx += (dx / distanceToCenter) * forceFactor;
-                obj.vy += (dy / distanceToCenter) * forceFactor;
-            }
-            
-            // 속도 감쇠 (시간이 지남에 따라 속도 감소)
-            obj.vx *= config.dampening;
-            obj.vy *= config.dampening;
-            
-            // 최대 속도 제한
-            const speed = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy);
-            if (speed > config.maxSpeed) {
-                obj.vx = (obj.vx / speed) * config.maxSpeed;
-                obj.vy = (obj.vy / speed) * config.maxSpeed;
-            }
-            
-            // 위치 업데이트
-            obj.x += obj.vx * config.simulationSpeed;
-            obj.y += obj.vy * config.simulationSpeed;
-        });
-        
-        // 충돌 감지 및 해결
-        for (let i = 0; i < physicsObjects.length; i++) {
-            for (let j = i + 1; j < physicsObjects.length; j++) {
-                const obj1 = physicsObjects[i];
-                const obj2 = physicsObjects[j];
-                
-                // 두 북마크 간의 거리 계산
-                const dx = obj2.x - obj1.x;
-                const dy = obj2.y - obj1.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                // 충돌 감지
-                const minDistance = obj1.radius + obj2.radius;
-                if (distance < minDistance) {
-                    // 충돌 해결: 겹친 만큼 서로 밀어내기
-                    const overlap = (minDistance - distance) * config.stiffness;
-                    
-                    // 충돌 방향 벡터 계산
-                    const directionX = dx / distance;
-                    const directionY = dy / distance;
-                    
-                    // 서로 밀어내는 위치 조정
-                    obj1.x -= directionX * overlap * 0.5;
-                    obj1.y -= directionY * overlap * 0.5;
-                    obj2.x += directionX * overlap * 0.5;
-                    obj2.y += directionY * overlap * 0.5;
-                    
-                    // 탄성 충돌에 의한 운동량 교환
-                    const m1 = obj1.mass;
-                    const m2 = obj2.mass;
-                    const v1x = obj1.vx;
-                    const v1y = obj1.vy;
-                    const v2x = obj2.vx;
-                    const v2y = obj2.vy;
-                    
-                    // 충돌 후 속도 계산
-                    const totalMass = m1 + m2;
-                    const massRatio1 = m1 / totalMass;
-                    const massRatio2 = m2 / totalMass;
-                    
-                    // 접촉하는 방향으로의 속도 계산
-                    const v1DotDir = v1x * directionX + v1y * directionY;
-                    const v2DotDir = v2x * directionX + v2y * directionY;
-                    
-                    // 탄성 충돌 계산 (물리학 공식)
-                    const v1NewDotDir = v1DotDir + 2 * massRatio2 * (v2DotDir - v1DotDir);
-                    const v2NewDotDir = v2DotDir + 2 * massRatio1 * (v1DotDir - v2DotDir);
-                    
-                    // 속도 업데이트
-                    obj1.vx += (v1NewDotDir - v1DotDir) * directionX * (1 - config.friction);
-                    obj1.vy += (v1NewDotDir - v1DotDir) * directionY * (1 - config.friction);
-                    obj2.vx += (v2NewDotDir - v2DotDir) * directionX * (1 - config.friction);
-                    obj2.vy += (v2NewDotDir - v2DotDir) * directionY * (1 - config.friction);
-                }
-            }
-        }
-        
-        // 시뮬레이션 진행 상황 로깅 (단계별로)
-        if (step === 0 || step === config.simulationSteps - 1 || step % 10 === 0) {
-            console.log(`물리 시뮬레이션 진행 중: ${step+1}/${config.simulationSteps} 단계`);
-        }
-    }
-    
-    // 경계 밖으로 나간 북마크 위치 조정
-    physicsObjects.forEach(obj => {
-        obj.x = Math.max(margin, Math.min(screenWidth - margin, obj.x));
-        obj.y = Math.max(margin, Math.min(screenHeight - margin, obj.y));
-    });
-    
-    console.log("물리 시뮬레이션 완료");
-    
-    // 시뮬레이션 통계 출력
-    let avgDistToCenter = 0;
-    physicsObjects.forEach(obj => {
-        const dx = obj.x - centerX;
-        const dy = obj.y - centerY;
-        avgDistToCenter += Math.sqrt(dx*dx + dy*dy);
-    });
-    avgDistToCenter /= physicsObjects.length;
-    
-    console.log(`평균 중심 거리: ${avgDistToCenter.toFixed(2)}px`);
 }
 
 // 물리 엔진으로 계산된 위치에 북마크 배치
