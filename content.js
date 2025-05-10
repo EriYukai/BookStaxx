@@ -92,7 +92,7 @@ function initializeBookStaxx() {
     }
 }
 
-// 설정 로드 함수
+// 설정 로드 함수 수정
 function loadAppSettings() {
     try {
         console.log("설정 로드 시작");
@@ -137,6 +137,16 @@ function loadAppSettings() {
             if (response.settings) {
                 // 현재 설정 업데이트
                 Object.assign(currentSettings, response.settings);
+                
+                // 디버깅용: 최대 북마크 수를 명시적으로 100으로 설정하여 테스트
+                if (currentSettings.maxBookmarks) {
+                    console.log("원래 maxBookmarks 값:", currentSettings.maxBookmarks, "타입:", typeof currentSettings.maxBookmarks);
+                    
+                    // 숫자로 강제 변환하여 설정
+                    currentSettings.maxBookmarks = 100;
+                    console.log("변경된 maxBookmarks 값:", currentSettings.maxBookmarks, "타입:", typeof currentSettings.maxBookmarks);
+                }
+                
                 console.log("설정 로드 완료:", currentSettings);
             } else {
                 console.log("설정 로드됨 (기본 설정):", currentSettings);
@@ -472,7 +482,7 @@ function loadBookmarksAndDisplay() {
     }
 }
 
-// 북마크를 직접 아이콘으로 표시하는 함수
+// 북마크를 직접 아이콘으로 표시하는 함수에 디버깅 로그 추가
 function displayBookmarkIconsDirectly(receivedBookmarks) {
     try {
         console.log("북마크 아이콘 표시 시작");
@@ -499,11 +509,20 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         addAnimationStyles();
         
         // 설정에서 북마크 최대 개수 가져오기 (문자열 설정을 숫자로 변환)
-        const maxBookmarks = parseInt(currentSettings.maxBookmarks || '20', 10);
+        const maxBookmarks = typeof currentSettings.maxBookmarks === 'number' 
+            ? currentSettings.maxBookmarks 
+            : parseInt(currentSettings.maxBookmarks || '20', 10);
+        
+        // 최대 북마크 수 설정값 로그 출력
+        console.log("적용할 최대 북마크 수:", maxBookmarks, "타입:", typeof maxBookmarks);
+        console.log("현재 설정 전체:", currentSettings);
         
         // 배열을 랜덤하게 섞어서 일부만 표시 (최신순 표시를 위해 역순으로 정렬 후 섞기)
         let shuffledBookmarks = [...allBookmarks].reverse().sort(() => Math.random() - 0.5);
-        const bookmarksToDisplay = shuffledBookmarks.slice(0, maxBookmarks);
+        const bookmarks = shuffledBookmarks.slice(0, maxBookmarks);
+        
+        // 실제로 표시될 북마크 수 로그 출력
+        console.log(`표시될 북마크 수: ${bookmarks.length}개 (최대 설정: ${maxBookmarks}개)`);
         
         // 마우스 위치 및 화면 크기
         const mouseX = clickPosition.x;
@@ -527,7 +546,7 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         // 레이아웃 모드에 따라 북마크 배치 방식 결정
         if (layoutMode === 'circle') {
             // 원형 레이아웃: 개선된 원형 배치 알고리즘
-            const totalBookmarks = bookmarksToDisplay.length;
+            const totalBookmarks = bookmarks.length;
             
             // 배치 방식 결정: 북마크 수에 따라 자동 결정
             let placementStrategy = 'singleCircle';  // 기본 단일 원형 배치
@@ -755,7 +774,7 @@ function displayBookmarkIconsDirectly(receivedBookmarks) {
         placementPositions.forEach(position => {
             try {
                 // 해당 인덱스의 북마크 가져오기
-                const bookmark = bookmarksToDisplay[position.index];
+                const bookmark = bookmarks[position.index];
                 if (!bookmark) return;
                 
                 // 아이콘 생성
@@ -1244,12 +1263,13 @@ function displayBookmarkIcons(container, tree) {
             return;
         }
         
-        // 설정에서 북마크 최대 개수 가져오기
-        const maxBookmarks = currentSettings.maxBookmarks || 20;
+        // 설정에서 북마크 최대 개수 가져오기 (문자열 설정을 숫자로 변환)
+        const maxBookmarks = typeof currentSettings.maxBookmarks === 'number' 
+            ? currentSettings.maxBookmarks 
+            : parseInt(currentSettings.maxBookmarks || '20', 10);
+        
         // 배열을 랜덤하게 섞어서 일부만 표시 (최신순 표시를 위해 역순으로 정렬 후 섞기)
         let shuffledBookmarks = [...allBookmarks].reverse().sort(() => Math.random() - 0.5);
-        
-        // 설정된 최대 북마크 수 만큼만 사용
         const bookmarks = shuffledBookmarks.slice(0, maxBookmarks);
         
         // 클릭 위치 가져오기
